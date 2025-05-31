@@ -1,9 +1,10 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react'; // Import 'use'
 import Image from 'next/image';
-import { getProductById, PRODUCTS } from '@/lib/data';
-import type { Product, Review as ReviewType } from '@/types';
+import { getProductById } from '@/lib/data';
+import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -14,7 +15,13 @@ import { ProductRecommendations } from '@/components/products/ProductRecommendat
 import Link from 'next/link';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
+  // Conditionally unwrap paramsProp if it's a promise
+  const params = (typeof paramsProp.then === 'function')
+    ? use(paramsProp as Promise<{id: string}>)
+    : paramsProp as {id: string};
+  const { id } = params; // id is now from the resolved params object
+
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingHistory, setViewingHistory] = useState<string[]>([]);
@@ -24,12 +31,16 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchedProduct = getProductById(params.id);
+    // Reset loading state when id changes
+    setIsLoading(true);
+    setProduct(null); // Clear previous product
+    
+    const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
       setProduct(fetchedProduct);
-      // Update viewing history
+      // Update viewing history using the resolved id
       setViewingHistory(prev => {
-        const newHistory = [params.id, ...prev.filter(id => id !== params.id)].slice(0, 5); // Keep last 5 viewed
+        const newHistory = [id, ...prev.filter(viewedId => viewedId !== id)].slice(0, 5);
         if (typeof window !== 'undefined') {
           localStorage.setItem('shopSphereViewingHistory', JSON.stringify(newHistory));
         }
@@ -37,7 +48,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       });
     }
     setIsLoading(false);
-  }, [params.id]);
+  }, [id]); // Depend on the resolved id
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -210,3 +221,4 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
