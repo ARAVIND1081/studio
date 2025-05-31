@@ -8,7 +8,7 @@ import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap } from 'lucide-react'; // Added Zap for Buy Now
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
@@ -17,6 +17,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
   const params = (typeof paramsProp.then === 'function')
@@ -37,10 +38,12 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
 
   const { addToCart } = useCart();
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
 
   useEffect(() => {
     setIsLoading(true);
     setProduct(null); 
+    setCurrentImageIndex(0); // Reset image index when product changes
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
@@ -75,15 +78,26 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     }
   };
 
+  const handleBuyNow = () => {
+    if (product) {
+      addToCart(product, 1); // Ensure quantity 1 or adds if not present
+      router.push('/checkout');
+    }
+  };
+
   const nextImage = () => {
     if (product && product.images && product.images.length > 0) {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % product.images!.length);
+    } else if (product) {
+        setCurrentImageIndex(0); // Only one default image
     }
   };
 
   const prevImage = () => {
     if (product && product.images && product.images.length > 0) {
       setCurrentImageIndex((prevIndex) => (prevIndex - 1 + product.images!.length) % product.images!.length);
+    } else if (product) {
+        setCurrentImageIndex(0); // Only one default image
     }
   };
   
@@ -144,14 +158,21 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
         {/* Product Images */}
         <div className="relative">
           <div className="aspect-[4/3] relative overflow-hidden rounded-lg shadow-xl">
-            <Image
-              src={displayImages[currentImageIndex]}
-              alt={product.name}
-              layout="fill"
-              objectFit="cover"
-              className="transition-opacity duration-300"
-              data-ai-hint="product lifestyle"
-            />
+            {displayImages.length > 0 ? (
+                 <Image
+                    src={displayImages[currentImageIndex]}
+                    alt={product.name}
+                    layout="fill"
+                    objectFit="cover"
+                    className="transition-opacity duration-300"
+                    data-ai-hint="product lifestyle"
+                    key={displayImages[currentImageIndex]} // Add key for re-render on image change
+                />
+            ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <p className="text-muted-foreground">No image available</p>
+                </div>
+            )}
           </div>
           {displayImages.length > 1 && (
             <>
@@ -204,9 +225,14 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
           </div>
           <p className="text-3xl font-semibold text-accent">${product.price.toFixed(2)}</p>
           <p className="text-foreground leading-relaxed">{product.description}</p>
-          <Button onClick={handleAddToCart} size="lg" className="w-full md:w-auto bg-primary hover:bg-accent hover:text-accent-foreground transition-colors duration-300 text-lg py-3 px-8">
-            <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleAddToCart} size="lg" className="flex-1 bg-primary hover:bg-accent hover:text-accent-foreground transition-colors duration-300 text-lg py-3 px-8">
+              <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
+            </Button>
+            <Button onClick={handleBuyNow} size="lg" variant="outline" className="flex-1 border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-colors duration-300 text-lg py-3 px-8">
+              <Zap className="mr-2 h-5 w-5" /> Buy Now
+            </Button>
+          </div>
         </div>
       </div>
 
