@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Search } from 'lucide-react';
+import { ShoppingCart, Search, Shield } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,9 @@ export function Header() {
           </Link>
           <Link href="/contact" className="text-foreground hover:text-accent transition-colors">
             Contact
+          </Link>
+          <Link href="/admin" className="text-foreground hover:text-accent transition-colors flex items-center">
+            <Shield className="mr-1 h-4 w-4" /> Admin
           </Link>
           {/* Future search bar implementation
           <div className="relative">
