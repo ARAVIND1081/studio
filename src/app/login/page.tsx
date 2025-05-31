@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { verifyUserCredentials } from "@/lib/data";
 import { LogIn, Mail, Lock } from 'lucide-react';
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -32,6 +33,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { login } = useAuth(); // Get login function from AuthContext
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -42,25 +44,24 @@ export default function LoginPage() {
   });
 
   async function onSubmit(data: LoginFormValues) {
-    // SIMULATED LOGIN - NOT SECURE
     const user = verifyUserCredentials(data.email, data.password);
 
     if (user) {
+      login(user); // Set current user in AuthContext
       toast({
         title: "Login Successful!",
         description: `Welcome back, ${user.name || user.email}!`,
       });
-      // In a real app, you'd set up a session/token here
-      // For this demo, we'll just redirect to home.
-      router.push('/');
+      router.push('/'); // Redirect to home page
     } else {
       toast({
         title: "Login Failed",
         description: "Invalid email or password.",
         variant: "destructive",
       });
+      // form.reset(); // Optionally reset form, or clear only password - let's not reset on failure
+      form.setValue("password", ""); // Clear only password on failure
     }
-    form.reset(); // Optionally reset form, or clear only password
   }
 
   return (
