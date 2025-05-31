@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -34,17 +35,17 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
   };
 
   return (
-    <Card className="mb-8 shadow-lg">
-      <CardHeader>
-        <CardTitle className="flex items-center text-xl font-headline">
-          <Filter className="mr-2 h-5 w-5 text-accent" /> Filters
+    <Card className="mb-6 shadow-md">
+      <CardHeader className="p-3">
+        <CardTitle className="flex items-center text-lg font-headline">
+          <Filter className="mr-2 h-4 w-4 text-accent" /> Filters
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 p-3">
         <div>
-          <Label htmlFor="category-filter" className="text-base">Category</Label>
+          <Label htmlFor="category-filter" className="text-sm font-medium">Category</Label>
           <Select value={category} onValueChange={(value: Category | 'all') => setCategory(value)}>
-            <SelectTrigger id="category-filter" className="w-full mt-1">
+            <SelectTrigger id="category-filter" className="w-full mt-1 h-9 text-sm">
               <SelectValue placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
@@ -57,7 +58,7 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
         </div>
 
         <div>
-          <Label htmlFor="price-range-filter" className="text-base">Price Range: ${priceRange[0]} - ${priceRange[1]}</Label>
+          <Label htmlFor="price-range-filter" className="text-sm font-medium">Price: ${priceRange[0]} - ${priceRange[1]}</Label>
           <Slider
             id="price-range-filter"
             min={0}
@@ -65,32 +66,33 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
             step={10}
             value={[priceRange[0], priceRange[1]]}
             onValueChange={(value: [number, number]) => setPriceRange(value)}
-            className="mt-2 [&>span:first-child>span]:bg-accent [&>span:last-child]:bg-accent"
+            className="mt-2 [&>span:first-child>span]:bg-accent [&>span:last-child]:bg-accent [&>span>span]:h-4 [&>span>span]:w-4 [&>span>span]:border-2"
           />
         </div>
 
         <div>
-          <Label htmlFor="rating-filter" className="text-base">Minimum Rating</Label>
+          <Label htmlFor="rating-filter" className="text-sm font-medium">Min Rating</Label>
           <div className="flex space-x-1 mt-1">
             {[1, 2, 3, 4, 5].map(r => (
               <Button
                 key={r}
                 variant={rating === r ? "default" : "outline"}
+                size="sm"
                 onClick={() => setRating(r === rating ? 0 : r)}
-                className={`flex-1 ${rating === r ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'hover:border-accent'}`}
+                className={`flex-1 h-8 px-2 text-xs ${rating === r ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'hover:border-accent'}`}
               >
-                {r} <Star className="ml-1 h-4 w-4 fill-current" />
+                {r} <Star className="ml-1 h-3 w-3 fill-current" />
               </Button>
             ))}
           </div>
         </div>
         
-        <div className="flex space-x-2 pt-4">
-          <Button onClick={handleApplyFilters} className="w-full bg-primary hover:bg-accent hover:text-accent-foreground transition-colors">
-            <Filter className="mr-2 h-4 w-4" /> Apply Filters
+        <div className="flex space-x-2 pt-2">
+          <Button onClick={handleApplyFilters} size="sm" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground transition-colors h-9">
+            <Filter className="mr-1.5 h-3.5 w-3.5" /> Apply
           </Button>
-          <Button onClick={handleResetFilters} variant="outline" className="w-full hover:border-accent hover:text-accent">
-            <X className="mr-2 h-4 w-4" /> Reset Filters
+          <Button onClick={handleResetFilters} variant="outline" size="sm" className="w-full hover:border-accent hover:text-accent h-9">
+            <X className="mr-1.5 h-3.5 w-3.5" /> Reset
           </Button>
         </div>
       </CardContent>
