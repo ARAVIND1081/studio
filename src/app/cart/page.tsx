@@ -71,7 +71,7 @@ export default function CartPage() {
                   <a className="text-lg font-semibold font-headline hover:text-accent transition-colors">{item.product.name}</a>
                 </Link>
                 <p className="text-sm text-muted-foreground">{item.product.category}</p>
-                <p className="text-md font-semibold text-primary">${item.product.price.toFixed(2)}</p>
+                <p className="text-md font-semibold text-primary">₹{item.product.price.toFixed(2)}</p>
               </div>
               <div className="flex items-center space-x-2 shrink-0">
                 <Button variant="outline" size="icon" onClick={() => handleQuantityChange(item.product.id, item.quantity - 1)} className="h-8 w-8">
@@ -90,7 +90,7 @@ export default function CartPage() {
               </div>
               <div className="shrink-0">
                 <p className="text-lg font-semibold text-primary md:w-24 text-center md:text-right">
-                  ${(item.product.price * item.quantity).toFixed(2)}
+                  ₹{(item.product.price * item.quantity).toFixed(2)}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => {
@@ -111,7 +111,7 @@ export default function CartPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal ({getItemCount()} items)</span>
-                <span className="font-semibold">${getCartTotal().toFixed(2)}</span>
+                <span className="font-semibold">₹{getCartTotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
@@ -120,7 +120,7 @@ export default function CartPage() {
               <Separator />
               <div className="flex justify-between text-xl font-bold">
                 <span className="text-primary">Total</span>
-                <span className="text-accent">${getCartTotal().toFixed(2)}</span>
+                <span className="text-accent">₹{getCartTotal().toFixed(2)}</span>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3">

@@ -35,7 +35,7 @@ function OrderConfirmationContent() {
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">Order Total:</span>
-                <span className="font-semibold text-primary">${parseFloat(orderTotal).toFixed(2)}</span>
+                <span className="font-semibold text-primary">₹{parseFloat(orderTotal).toFixed(2)}</span>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">

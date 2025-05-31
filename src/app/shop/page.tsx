@@ -11,13 +11,13 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SearchX } from 'lucide-react';
 
-const MAX_PRICE_DEFAULT = 500;
+const MAX_PRICE_DEFAULT_INR = 50000; // Adjusted for INR
 
 export default function ShopPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<{ category: Category | 'all'; priceRange: [number, number]; rating: number }>({
     category: 'all',
-    priceRange: [0, MAX_PRICE_DEFAULT],
+    priceRange: [0, MAX_PRICE_DEFAULT_INR],
     rating: 0,
   });
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -88,7 +88,13 @@ export default function ShopPage() {
       
       <div className="flex flex-col lg:flex-row lg:items-start gap-8">
         <aside className="w-full lg:w-1/4 xl:w-1/5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          <ProductFilters onFilterChange={setFilters} initialFilters={filters} />
+          <ProductFilters 
+            onFilterChange={setFilters} 
+            initialFilters={{
+                ...filters, 
+                priceRange: filters.priceRange[1] > MAX_PRICE_DEFAULT_INR ? [0, MAX_PRICE_DEFAULT_INR] : filters.priceRange 
+            }}
+          />
         </aside>
         <section className="w-full lg:w-3/4 xl:w-4/5">
           <SortDropdown onSortChange={setSortOption} currentSort={sortOption} />

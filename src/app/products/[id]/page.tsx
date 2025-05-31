@@ -223,7 +223,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
               ))}
             <span className="ml-2 text-muted-foreground">({product.rating.toFixed(1)} from {product.reviews?.length || 0} reviews)</span>
           </div>
-          <p className="text-3xl font-semibold text-accent">${product.price.toFixed(2)}</p>
+          <p className="text-3xl font-semibold text-accent">₹{product.price.toFixed(2)}</p>
           <p className="text-foreground leading-relaxed">{product.description}</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Button onClick={handleAddToCart} size="lg" className="flex-1 bg-primary hover:bg-accent hover:text-accent-foreground transition-colors duration-300 text-lg py-3 px-8">
@@ -355,4 +355,3 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     </div>
   );
 }
-

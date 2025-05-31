@@ -32,11 +32,10 @@ const shippingAddressSchema = z.object({
   city: z.string().min(2, "City is required"),
   state: z.string().min(2, "State/Province is required"),
   zipCode: z.string().min(5, "ZIP/Postal code is required"),
-  country: z.string().min(2, "Country is required").default("United States"),
+  country: z.string().min(2, "Country is required").default("India"), // Default to India
   phoneNumber: z.string().min(10, "Valid phone number is required").regex(/^\+?[0-9\s-()]+$/, "Invalid phone number format"),
 });
 
-// Updated schema: removed paymentDetails, added paymentMethod
 const checkoutFormSchema = z.object({
   shippingAddress: shippingAddressSchema,
   shippingMethod: z.string().min(1, "Please select a shipping method"),
@@ -47,8 +46,8 @@ type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const shippingOptions = [
   { id: 'standard', label: 'Standard Shipping (5-7 business days)', price: 0, description: 'Reliable and free' },
-  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 10.99, description: 'Faster delivery' },
-  { id: 'priority', label: 'Priority Shipping (1 business day)', price: 19.99, description: 'Get it tomorrow' },
+  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 150.00, description: 'Faster delivery' }, // Adjusted price
+  { id: 'priority', label: 'Priority Shipping (1 business day)', price: 300.00, description: 'Get it tomorrow' }, // Adjusted price
 ];
 
 const paymentMethods = [
@@ -79,16 +78,16 @@ export default function CheckoutPage() {
         city: "",
         state: "",
         zipCode: "",
-        country: "United States",
+        country: "India", // Default to India
         phoneNumber: "",
       },
       shippingMethod: shippingOptions[0].id,
-      paymentMethod: "", // Initialize paymentMethod
+      paymentMethod: "", 
     },
   });
 
   const itemsSubtotal = getCartTotal();
-  const mockTaxes = itemsSubtotal * 0.07; 
+  const mockTaxes = itemsSubtotal * 0.18; // Assuming 18% GST for example
   const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
 
 
@@ -101,12 +100,6 @@ export default function CheckoutPage() {
 
   const onSubmit = (data: CheckoutFormValues) => {
     console.log("Checkout data:", data);
-    // Here, you would typically handle the chosen paymentMethod
-    // For 'card', you might show another modal/step for card details.
-    // For 'upi', you might generate a QR code or redirect.
-    // For 'cod', no further payment action needed here.
-    // For 'netbanking', redirect to a bank page.
-    // This is a UI prototype, so we'll just log and proceed.
     toast({
       title: "Order Placed Successfully!",
       description: `Thank you for your purchase. Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}. Your order is being processed.`,
@@ -123,7 +116,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (cartItems.length === 0) {
+  if (cartItems.length === 0 && hasMounted) { // ensure hasMounted before redirecting
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Redirecting to cart...</p>
@@ -169,14 +162,14 @@ export default function CheckoutPage() {
                   <FormField control={form.control} name="shippingAddress.city" render={({ field }) => (
                     <FormItem>
                       <FormLabel>City</FormLabel>
-                      <FormControl><Input placeholder="Anytown" {...field} /></FormControl>
+                      <FormControl><Input placeholder="Mumbai" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="shippingAddress.state" render={({ field }) => (
                     <FormItem>
                       <FormLabel>State / Province</FormLabel>
-                      <FormControl><Input placeholder="CA" {...field} /></FormControl>
+                      <FormControl><Input placeholder="Maharashtra" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -184,15 +177,15 @@ export default function CheckoutPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <FormField control={form.control} name="shippingAddress.zipCode" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ZIP / Postal Code</FormLabel>
-                      <FormControl><Input placeholder="90210" {...field} /></FormControl>
+                      <FormLabel>PIN Code</FormLabel>
+                      <FormControl><Input placeholder="400001" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="shippingAddress.country" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country</FormLabel>
-                      <FormControl><Input placeholder="United States" {...field} /></FormControl>
+                      <FormControl><Input placeholder="India" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -200,7 +193,7 @@ export default function CheckoutPage() {
                 <FormField control={form.control} name="shippingAddress.phoneNumber" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4 text-accent" />Phone Number</FormLabel>
-                    <FormControl><Input type="tel" placeholder="(555) 123-4567" {...field} /></FormControl>
+                    <FormControl><Input type="tel" placeholder="+91 98765 43210" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -234,7 +227,7 @@ export default function CheckoutPage() {
                           <FormLabel className="font-normal flex-grow cursor-pointer">
                             <div className="flex justify-between items-center">
                                 <span>{option.label}</span>
-                                <span className="font-semibold text-primary">${option.price.toFixed(2)}</span>
+                                <span className="font-semibold text-primary">₹{option.price.toFixed(2)}</span>
                             </div>
                             {option.description && <p className="text-sm text-muted-foreground">{option.description}</p>}
                           </FormLabel>
@@ -298,7 +291,7 @@ export default function CheckoutPage() {
                             <p className="text-sm font-medium truncate">{item.product.name}</p>
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                             </div>
-                            <p className="text-sm font-semibold">${(item.product.price * item.quantity).toFixed(2)}</p>
+                            <p className="text-sm font-semibold">₹{(item.product.price * item.quantity).toFixed(2)}</p>
                         </div>
                     ))}
                 </div>
@@ -306,21 +299,21 @@ export default function CheckoutPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Items ({getItemCount()}) Subtotal</span>
-                    <span className="font-medium">${itemsSubtotal.toFixed(2)}</span>
+                    <span className="font-medium">₹{itemsSubtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span className="font-medium">${selectedShippingPrice.toFixed(2)}</span>
+                    <span className="font-medium">₹{selectedShippingPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Estimated Taxes</span>
-                    <span className="font-medium">${mockTaxes.toFixed(2)}</span> 
+                    <span className="font-medium">₹{mockTaxes.toFixed(2)}</span> 
                   </div>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
                   <span className="text-primary">Order Total</span>
-                  <span className="text-accent">${finalOrderTotal.toFixed(2)}</span>
+                  <span className="text-accent">₹{finalOrderTotal.toFixed(2)}</span>
                 </div>
               </CardContent>
               <CardFooter>

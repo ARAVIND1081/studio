@@ -16,11 +16,11 @@ interface ProductFiltersProps {
   initialFilters: { category: Category | 'all'; priceRange: [number, number]; rating: number };
 }
 
-const MAX_PRICE = 500; // Example max price
+const MAX_PRICE = 50000; // Example max price, adjusted for INR
 
 export function ProductFilters({ onFilterChange, initialFilters }: ProductFiltersProps) {
   const [category, setCategory] = useState<Category | 'all'>(initialFilters.category);
-  const [priceRange, setPriceRange] = useState<[number, number]>(initialFilters.priceRange);
+  const [priceRange, setPriceRange] = useState<[number, number]>(initialFilters.priceRange[1] > MAX_PRICE ? [0, MAX_PRICE] : initialFilters.priceRange);
   const [rating, setRating] = useState<number>(initialFilters.rating);
 
   const handleApplyFilters = () => {
@@ -58,12 +58,12 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
         </div>
 
         <div>
-          <Label htmlFor="price-range-filter" className="text-sm font-medium">Price: ${priceRange[0]} - ${priceRange[1]}</Label>
+          <Label htmlFor="price-range-filter" className="text-sm font-medium">Price: ₹{priceRange[0]} - ₹{priceRange[1]}</Label>
           <Slider
             id="price-range-filter"
             min={0}
             max={MAX_PRICE}
-            step={10}
+            step={1000} // Adjusted step for INR
             value={[priceRange[0], priceRange[1]]}
             onValueChange={(value: [number, number]) => setPriceRange(value)}
             className="mt-2 [&>span:first-child>span]:bg-accent [&>span:last-child]:bg-accent [&>span>span]:h-4 [&>span>span]:w-4 [&>span>span]:border-2"
