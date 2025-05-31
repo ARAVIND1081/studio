@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
-import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock, Bank } from "lucide-react";
+import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -174,7 +174,8 @@ export default function CheckoutPage() {
       description: `Thank you for your purchase. ${paymentDetailsDescription} Your order is being processed.`,
     });
     clearCart();
-    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${getItemCount()}`);
+    const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0); // Recalculate here before clearCart
+    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCount}`);
   };
 
   if (!hasMounted) {
@@ -407,7 +408,7 @@ export default function CheckoutPage() {
                         name="selectedBank"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center"><Bank className="mr-2 h-4 w-4 text-muted-foreground" /> Bank Name</FormLabel>
+                            <FormLabel className="flex items-center"><Landmark className="mr-2 h-4 w-4 text-muted-foreground" /> Bank Name</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -464,7 +465,7 @@ export default function CheckoutPage() {
                 <Separator />
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Items ({getItemCount()}) Subtotal</span>
+                    <span className="text-muted-foreground">Items ({cartItems.reduce((sum, item) => sum + item.quantity, 0)}) Subtotal</span>
                     <span className="font-medium">₹{itemsSubtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -494,3 +495,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    
