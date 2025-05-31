@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAllProducts, addProduct, deleteProduct, ProductCreateInput } from "@/lib/data";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput } from "@/lib/data";
 import Link from "next/link";
 import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle } from 'lucide-react';
 import type { Product } from "@/types";
@@ -17,22 +17,25 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<ProductCreateInput>({
     name: "",
     description: "",
     price: 0,
     category: "",
     imageUrl: "",
-    // Optional fields initialized
     images: [],
     rating: 0,
     specifications: [],
     reviews: [],
   });
+  const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
+
   const { toast } = useToast();
 
   useEffect(() => {
-    setProducts(getAllProducts());
+    refreshProducts();
   }, []);
 
   const refreshProducts = () => {
@@ -51,12 +54,21 @@ export default function AdminPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit') => {
     const { name, value } = e.target;
-    setNewProduct(prev => ({
-      ...prev,
-      [name]: name === 'price' ? parseFloat(value) || 0 : value,
-    }));
+    const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
+
+    if (formType === 'add') {
+      setNewProduct(prev => ({
+        ...prev,
+        [name]: parsedValue,
+      }));
+    } else {
+      setCurrentProductForm(prev => ({
+        ...prev,
+        [name]: parsedValue,
+      }));
+    }
   };
 
   const handleAddNewProduct = (e: FormEvent<HTMLFormElement>) => {
@@ -70,12 +82,44 @@ export default function AdminPage() {
       refreshProducts();
       toast({ title: "Product Added", description: `${newProduct.name} has been successfully added.` });
       setIsAddDialogOpen(false);
-      setNewProduct({ name: "", description: "", price: 0, category: "", imageUrl: "", images: [], rating: 0, specifications: [], reviews: [] }); // Reset form
+      setNewProduct({ name: "", description: "", price: 0, category: "", imageUrl: "", images: [], rating: 0, specifications: [], reviews: [] });
     } catch (error) {
       toast({ title: "Error", description: "Failed to add product.", variant: "destructive" });
       console.error("Error adding product:", error);
     }
   };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setCurrentProductForm({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      imageUrl: product.imageUrl,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateProduct = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imageUrl) {
+      toast({ title: "Missing Fields", description: "Please fill in all required product details for editing.", variant: "destructive" });
+      return;
+    }
+    try {
+      updateProduct(editingProduct.id, currentProductForm as Partial<Omit<Product, 'id'>>);
+      refreshProducts();
+      toast({ title: "Product Updated", description: `${currentProductForm.name} has been successfully updated.` });
+      setIsEditDialogOpen(false);
+      setEditingProduct(null);
+      setCurrentProductForm({});
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
+      console.error("Error updating product:", error);
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -115,27 +159,64 @@ export default function AdminPage() {
                 </DialogHeader>
                 <form onSubmit={handleAddNewProduct} className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" name="name" value={newProduct.name} onChange={handleInputChange} className="col-span-3" required />
+                    <Label htmlFor="add-name" className="text-right">Name</Label>
+                    <Input id="add-name" name="name" value={newProduct.name} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="description" className="text-right">Description</Label>
-                    <Textarea id="description" name="description" value={newProduct.description} onChange={handleInputChange} className="col-span-3" />
+                    <Label htmlFor="add-description" className="text-right">Description</Label>
+                    <Textarea id="add-description" name="description" value={newProduct.description} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="price" className="text-right">Price</Label>
-                    <Input id="price" name="price" type="number" value={newProduct.price} onChange={handleInputChange} className="col-span-3" required min="0.01" step="0.01" />
+                    <Label htmlFor="add-price" className="text-right">Price</Label>
+                    <Input id="add-price" name="price" type="number" value={newProduct.price} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required min="0.01" step="0.01" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category" className="text-right">Category</Label>
-                    <Input id="category" name="category" value={newProduct.category} onChange={handleInputChange} className="col-span-3" required />
+                    <Label htmlFor="add-category" className="text-right">Category</Label>
+                    <Input id="add-category" name="category" value={newProduct.category} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="imageUrl" className="text-right">Image URL</Label>
-                    <Input id="imageUrl" name="imageUrl" value={newProduct.imageUrl} onChange={handleInputChange} className="col-span-3" placeholder="https://placehold.co/600x400.png" required />
+                    <Label htmlFor="add-imageUrl" className="text-right">Image URL</Label>
+                    <Input id="add-imageUrl" name="imageUrl" value={newProduct.imageUrl} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" placeholder="https://placehold.co/600x400.png" required />
                   </div>
                   <DialogFooter>
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Product</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Product Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Product</DialogTitle>
+                  <DialogDescription>
+                    Update the details for the product. Click save when you're done.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUpdateProduct} className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-name" className="text-right">Name</Label>
+                    <Input id="edit-name" name="name" value={currentProductForm.name || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-description" className="text-right">Description</Label>
+                    <Textarea id="edit-description" name="description" value={currentProductForm.description || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-price" className="text-right">Price</Label>
+                    <Input id="edit-price" name="price" type="number" value={currentProductForm.price || 0} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required min="0.01" step="0.01" />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-category" className="text-right">Category</Label>
+                    <Input id="edit-category" name="category" value={currentProductForm.category || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-imageUrl" className="text-right">Image URL</Label>
+                    <Input id="edit-imageUrl" name="imageUrl" value={currentProductForm.imageUrl || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" placeholder="https://placehold.co/600x400.png" required />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Changes</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -149,7 +230,7 @@ export default function AdminPage() {
                     <p className="text-sm text-muted-foreground">${product.price.toFixed(2)} - {product.category}</p>
                   </div>
                   <div className="space-x-2">
-                    <Button variant="outline" size="sm" disabled> {/* Edit still disabled */}
+                    <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
                       <Edit3 className="mr-1 h-4 w-4" /> Edit
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)} className="text-destructive hover:border-destructive hover:text-destructive">
@@ -201,7 +282,7 @@ export default function AdminPage() {
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management is now interactive (add/delete). Full editing capabilities and persistence require further development.
+        Product management (add, edit, delete) is now interactive. Changes are in-memory and will reset on server restart.
       </p>
     </div>
   );
