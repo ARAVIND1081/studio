@@ -8,21 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound, AlertTriangle } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound, AlertTriangle, UserX } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext"; // Import useAuth
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from 'next/navigation';
 
 // --- IMPORTANT: Basic illustrative login ---
 // --- NOT FOR PRODUCTION USE. LACKS SECURITY. ---
-const HARDCODED_USERNAME = "admin";
-const HARDCODED_PASSWORD = "password";
+const HARDCODED_USERNAME = "admin"; // Internal admin dashboard login
+const HARDCODED_PASSWORD = "password"; // Internal admin dashboard password
+const SUPER_ADMIN_EMAIL = "admin@shopsphere.com"; // Main application user who is allowed to see the admin login
 // --- End of illustrative login warning ---
 
 export default function AdminPage() {
-  const { currentUser, isLoading: authIsLoading } = useAuth(); // Get main app auth state
+  const { currentUser, isLoading: authIsLoading, logout: mainAppLogout } = useAuth();
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -62,26 +63,21 @@ export default function AdminPage() {
 
   const { toast } = useToast();
 
-  // --- Admin's internal login state ---
+  // Admin's internal login state for the secondary admin login
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  // --- End of admin's internal login state ---
+
+  const isAuthorizedAdminUser = !authIsLoading && currentUser?.email === SUPER_ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!authIsLoading && !currentUser) {
-      router.push('/login'); // Redirect if not logged into main app
-    }
-  }, [currentUser, authIsLoading, router]);
-
-  useEffect(() => {
-    // Load admin data only if main user is authenticated AND admin is authenticated internally
-    if (currentUser && isAdminAuthenticated) {
+    // Load admin data only if main user is the designated admin AND admin is internally authenticated
+    if (isAuthorizedAdminUser && isAdminAuthenticated) {
       refreshProducts();
       refreshSiteSettings();
     }
-  }, [currentUser, isAdminAuthenticated]);
+  }, [isAuthorizedAdminUser, isAdminAuthenticated]);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
@@ -245,8 +241,7 @@ export default function AdminPage() {
     }
   };
 
-  // --- Admin's internal illustrative login functions ---
-  const handleAdminLogin = (e: FormEvent<HTMLFormElement>) => {
+  const handleInternalAdminLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoginError(null);
     if (loginUsername === HARDCODED_USERNAME && loginPassword === HARDCODED_PASSWORD) {
@@ -260,11 +255,10 @@ export default function AdminPage() {
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleInternalAdminLogout = () => {
     setIsAdminAuthenticated(false);
     toast({title: "Admin Logged Out", description: "You have been logged out of the Admin Dashboard."});
   };
-  // --- End of admin's internal illustrative login functions ---
 
   if (authIsLoading) {
     return (
@@ -274,8 +268,6 @@ export default function AdminPage() {
     );
   }
 
-  // If main app user is not logged in (and auth is not loading), this will be caught by the useEffect redirect.
-  // This is a fallback display if redirect hasn't happened yet or for clearer state.
   if (!currentUser) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
@@ -289,7 +281,20 @@ export default function AdminPage() {
     );
   }
 
-  // If main app user IS logged in, then show the admin's internal login or dashboard
+  if (!isAuthorizedAdminUser) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
+        <UserX className="h-16 w-16 text-destructive mb-4" />
+        <h1 className="text-3xl font-bold font-headline text-destructive mb-2">Access Denied</h1>
+        <p className="text-lg text-muted-foreground mb-6">You are not authorized to access the admin dashboard.</p>
+        <Button onClick={() => mainAppLogout()} variant="outline" className="hover:border-destructive hover:text-destructive">
+          <LogOut className="mr-2 h-5 w-5" /> Logout
+        </Button>
+      </div>
+    );
+  }
+
+  // If main app user IS the designated admin, then show the admin's internal login or dashboard
   if (!isAdminAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -300,7 +305,7 @@ export default function AdminPage() {
             <CardDescription>Enter your admin credentials to access the dashboard.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAdminLogin} className="space-y-6">
+            <form onSubmit={handleInternalAdminLogin} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="admin-username">Admin Username</Label>
                 <Input
@@ -336,7 +341,7 @@ export default function AdminPage() {
     );
   }
 
-  // If main app user is logged in AND admin is internally authenticated:
+  // If main app user is designated admin AND admin is internally authenticated:
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -344,9 +349,14 @@ export default function AdminPage() {
           <Shield className="mr-3 h-10 w-10 text-accent" />
           Admin Dashboard
         </h1>
-        <Button variant="outline" onClick={handleAdminLogout} className="text-destructive hover:border-destructive hover:text-destructive">
-          <LogOut className="mr-2 h-5 w-5" /> Logout from Admin
-        </Button>
+        <div className="space-x-2">
+            <Button variant="outline" onClick={handleInternalAdminLogout} className="text-destructive hover:border-destructive hover:text-destructive">
+                <LogOut className="mr-2 h-5 w-5" /> Logout from Admin Section
+            </Button>
+            <Button variant="outline" onClick={() => mainAppLogout()} className="hover:border-destructive hover:text-destructive">
+                <LogOut className="mr-2 h-5 w-5" /> Logout from App
+            </Button>
+        </div>
       </div>
       <p className="text-lg text-muted-foreground">
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
@@ -641,7 +651,7 @@ export default function AdminPage() {
 
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
-        Admin login is illustrative and uses hardcoded credentials ('admin'/'password'). Access to this page requires main application login.
+        Admin login is illustrative. Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}', then internal admin login ('admin'/'password').
       </p>
     </div>
   );

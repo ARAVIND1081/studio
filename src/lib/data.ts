@@ -207,7 +207,7 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
 let siteSettingsData: SiteSettings = {
   siteName: "ShopSphere",
   siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
-  contentManagementInfoText: "Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page.",
+  contentManagementInfoText: "Manage your products, site settings, and page content from here.",
   homePageNoProductsTitle: "Our Shelves Are Being Restocked!",
   homePageNoProductsDescription: "We're currently updating our inventory with exciting new products. Please check back soon!",
   contactPageTitle: "Get In Touch",
@@ -228,12 +228,13 @@ export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSett
 
 // --- User Management (In-memory, for UI Prototyping Only - NOT SECURE) ---
 let usersData: User[] = [
-    // Example user for testing login
-    { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' }
+    { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' },
+    { id: 'adminuser', email: 'admin@shopsphere.com', password: 'adminpass', name: 'Shop Admin' } // Added admin user
 ];
 
 export const getUserByEmail = (email: string): User | undefined => {
-  return usersData.find(user => user.email === email);
+  const user = usersData.find(user => user.email === email);
+  return user ? {...user} : undefined; // Return a copy
 };
 
 export type UserCreateInput = Omit<User, 'id'>;
@@ -242,7 +243,7 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
   if (getUserByEmail(userInput.email)) {
     return { error: 'Account already exists with this email.' };
   }
-  const newId = `user${usersData.length + 1}`;
+  const newId = `user${usersData.length + 1}_${Date.now()}`;
   // IMPORTANT: In a real app, passwords MUST be hashed securely.
   // Storing plain text passwords is a major security vulnerability.
   const newUser: User = { ...userInput, id: newId };
@@ -252,10 +253,9 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
 
 // Function to simulate login (VERY INSECURE - for UI demo only)
 export const verifyUserCredentials = (email: string, pass: string): User | null => {
-    const user = getUserByEmail(email);
+    const user = usersData.find(u => u.email === email); // Find directly without using getUserByEmail to avoid premature copying
     if (user && user.password === pass) { // Plain text password check - BAD!
-        return user;
+        return {...user}; // Return a copy
     }
     return null;
 }
-
