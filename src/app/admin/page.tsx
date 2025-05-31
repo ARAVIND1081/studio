@@ -40,6 +40,9 @@ export default function AdminPage() {
     homePageNoProductsDescription: '',
     contactPageTitle: '',
     contactPageDescription: '',
+    contactPagePhoneNumber: '',
+    contactPageAddress: '',
+    contactPageAdditionalInfo: '',
   });
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
@@ -69,6 +72,9 @@ export default function AdminPage() {
       homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
       contactPageTitle: currentSettings.contactPageTitle,
       contactPageDescription: currentSettings.contactPageDescription,
+      contactPagePhoneNumber: currentSettings.contactPagePhoneNumber,
+      contactPageAddress: currentSettings.contactPageAddress,
+      contactPageAdditionalInfo: currentSettings.contactPageAdditionalInfo,
     });
   }
 
@@ -185,6 +191,9 @@ export default function AdminPage() {
         homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
         contactPageTitle: currentSettings.contactPageTitle,
         contactPageDescription: currentSettings.contactPageDescription,
+        contactPagePhoneNumber: currentSettings.contactPagePhoneNumber,
+        contactPageAddress: currentSettings.contactPageAddress,
+        contactPageAdditionalInfo: currentSettings.contactPageAdditionalInfo,
     });
     setIsContentDialogOpen(true);
   };
@@ -198,11 +207,11 @@ export default function AdminPage() {
         !editableContentForm.contactPageTitle ||
         !editableContentForm.contactPageDescription
         ) {
-       toast({ title: "Missing Fields", description: "All page content fields must be filled.", variant: "destructive" });
+       toast({ title: "Missing Fields", description: "Core page content fields must be filled.", variant: "destructive" });
        return;
     }
     try {
-      updateSiteSettings(editableContentForm); // editableContentForm now contains all content fields
+      updateSiteSettings(editableContentForm); 
       refreshSiteSettings();
       toast({ title: "Page Content Updated", description: "Relevant page content sections have been updated." });
       setIsContentDialogOpen(false);
@@ -222,7 +231,7 @@ export default function AdminPage() {
         </h1>
       </div>
       <p className="text-lg text-muted-foreground">
-        Welcome to the ShopSphere Admin Panel. Manage your products, site settings, and page content from here.
+        {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
       </p>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -386,13 +395,10 @@ export default function AdminPage() {
               <FileText className="mr-2 h-6 w-6 text-accent"/> Content Management
             </CardTitle>
             <CardDescription>
-              Edit key text content for various site pages.
+              Edit key text content for various site pages and contact information.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Current Admin Info Text: "{siteSettings.contentManagementInfoText || "Default placeholder text."}"
-            </p>
             <Dialog open={isContentDialogOpen} onOpenChange={setIsContentDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto bg-primary hover:bg-accent hover:text-accent-foreground" onClick={handleOpenContentDialog}>
@@ -403,7 +409,7 @@ export default function AdminPage() {
                 <DialogHeader>
                   <DialogTitle>Edit Page Content</DialogTitle>
                   <DialogDescription>
-                    Update key informational text displayed on various pages.
+                    Update key informational text displayed on various pages and contact details.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleUpdatePageContent} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -414,7 +420,7 @@ export default function AdminPage() {
                             name="contentManagementInfoText" 
                             value={editableContentForm.contentManagementInfoText || ''} 
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[100px] mt-1" 
+                            className="min-h-[80px] mt-1" 
                             placeholder="Enter informational text for the Admin Dashboard..."
                             required 
                         />
@@ -438,7 +444,7 @@ export default function AdminPage() {
                             name="homePageNoProductsDescription" 
                             value={editableContentForm.homePageNoProductsDescription || ''} 
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[100px] mt-1" 
+                            className="min-h-[80px] mt-1" 
                             placeholder="Description for no products alert..."
                             required 
                         />
@@ -462,9 +468,42 @@ export default function AdminPage() {
                             name="contactPageDescription" 
                             value={editableContentForm.contactPageDescription || ''} 
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[100px] mt-1" 
+                            className="min-h-[80px] mt-1" 
                             placeholder="Introductory description for Contact Us page..."
                             required 
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="contactPagePhoneNumber">Contact Page: Phone Number</Label>
+                        <Input 
+                            id="contactPagePhoneNumber" 
+                            name="contactPagePhoneNumber" 
+                            value={editableContentForm.contactPagePhoneNumber || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="mt-1" 
+                            placeholder="e.g., +1-555-123-4567"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="contactPageAddress">Contact Page: Address</Label>
+                        <Textarea 
+                            id="contactPageAddress" 
+                            name="contactPageAddress" 
+                            value={editableContentForm.contactPageAddress || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="min-h-[60px] mt-1" 
+                            placeholder="e.g., 123 Main St, Anytown, USA"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="contactPageAdditionalInfo">Contact Page: Additional Info</Label>
+                        <Textarea 
+                            id="contactPageAdditionalInfo" 
+                            name="contactPageAdditionalInfo" 
+                            value={editableContentForm.contactPageAdditionalInfo || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="min-h-[80px] mt-1" 
+                            placeholder="e.g., Office hours, specific directions..."
                         />
                     </div>
                   <DialogFooter className="mt-2">
@@ -473,12 +512,17 @@ export default function AdminPage() {
                 </form>
               </DialogContent>
             </Dialog>
+             <div className="mt-4 space-y-1 text-sm text-muted-foreground">
+                <p>Admin Info: <span className="text-foreground">{siteSettings.contentManagementInfoText}</span></p>
+                <p>Contact Phone: <span className="text-foreground">{siteSettings.contactPagePhoneNumber || "Not set"}</span></p>
+                <p>Contact Address: <span className="text-foreground">{siteSettings.contactPageAddress || "Not set"}</span></p>
+             </div>
           </CardContent>
         </Card>
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management, site settings (Name, Tagline), and specific page content sections are now interactive. Changes are in-memory and will reset on server restart.
+        Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
       </p>
     </div>
   );

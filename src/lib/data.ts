@@ -172,11 +172,14 @@ export const deleteProduct = (id: string): boolean => {
 let siteSettingsData: SiteSettings = {
   siteName: "ShopSphere",
   siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
-  contentManagementInfoText: "Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page. This functionality is currently under development.",
+  contentManagementInfoText: "Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page.",
   homePageNoProductsTitle: "Our Shelves Are Being Restocked!",
   homePageNoProductsDescription: "We're currently updating our inventory with exciting new products. Please check back soon!",
   contactPageTitle: "Get In Touch",
   contactPageDescription: "We'd love to hear from you! Whether you have a question about our products, an order, or just want to say hello, please use the form below.",
+  contactPagePhoneNumber: "1-800-555-0199",
+  contactPageAddress: "123 Luxury Lane, Shopsville, CA 90210",
+  contactPageAdditionalInfo: "Our customer service team is available Monday to Friday, 9 AM - 5 PM PST.",
 };
 
 export const getSiteSettings = (): SiteSettings => {

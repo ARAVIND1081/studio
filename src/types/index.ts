@@ -40,4 +40,7 @@ export interface SiteSettings {
   homePageNoProductsDescription?: string;
   contactPageTitle?: string;
   contactPageDescription?: string;
+  contactPagePhoneNumber?: string;
+  contactPageAddress?: string;
+  contactPageAdditionalInfo?: string;
 }

@@ -20,9 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, MessageSquare, User } from "lucide-react";
+import { Mail, MessageSquare, User, Phone, MapPin, Info } from "lucide-react";
 import { getSiteSettings } from "@/lib/data";
 import type { SiteSettings } from "@/types";
+import { Separator } from "@/components/ui/separator";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -32,18 +33,28 @@ const contactFormSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
+interface ContactPageContent extends SiteSettings {
+  // Inherits all from SiteSettings, can add more if needed
+}
+
 export default function ContactPage() {
   const { toast } = useToast();
-  const [pageContent, setPageContent] = useState<{title: string, description: string}>({
-    title: "Contact Us",
-    description: "Have a question or feedback? Fill out the form below and we'll be in touch.",
+  const [pageContent, setPageContent] = useState<Partial<ContactPageContent>>({
+    contactPageTitle: "Contact Us",
+    contactPageDescription: "Have a question or feedback? Fill out the form below and we'll be in touch.",
+    contactPagePhoneNumber: "",
+    contactPageAddress: "",
+    contactPageAdditionalInfo: "",
   });
 
   useEffect(() => {
     const settings = getSiteSettings();
     setPageContent({
-      title: settings.contactPageTitle || "Contact Us",
-      description: settings.contactPageDescription || "Have a question or feedback? Fill out the form below and we'll be in touch.",
+      contactPageTitle: settings.contactPageTitle || "Contact Us",
+      contactPageDescription: settings.contactPageDescription || "Have a question or feedback? Fill out the form below and we'll be in touch.",
+      contactPagePhoneNumber: settings.contactPagePhoneNumber,
+      contactPageAddress: settings.contactPageAddress,
+      contactPageAdditionalInfo: settings.contactPageAdditionalInfo,
     });
   }, []);
   
@@ -66,13 +77,13 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto space-y-8">
       <Card className="shadow-xl">
         <CardHeader className="text-center">
           <Mail className="mx-auto h-12 w-12 text-accent mb-4" />
-          <CardTitle className="text-4xl font-bold font-headline text-primary">{pageContent.title}</CardTitle>
-          <CardDescription className="text-lg text-muted-foreground">
-            {pageContent.description}
+          <CardTitle className="text-4xl font-bold font-headline text-primary">{pageContent.contactPageTitle}</CardTitle>
+          <CardDescription className="text-lg text-muted-foreground px-4">
+            {pageContent.contactPageDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -129,6 +140,46 @@ export default function ContactPage() {
           </Form>
         </CardContent>
       </Card>
+
+      {(pageContent.contactPagePhoneNumber || pageContent.contactPageAddress || pageContent.contactPageAdditionalInfo) && (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-headline text-primary">Our Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-muted-foreground">
+            {pageContent.contactPagePhoneNumber && (
+              <div className="flex items-start">
+                <Phone className="mr-3 h-5 w-5 text-accent flex-shrink-0 mt-1" />
+                <div>
+                  <span className="font-semibold text-foreground">Phone:</span>
+                  <p>{pageContent.contactPagePhoneNumber}</p>
+                </div>
+              </div>
+            )}
+            {pageContent.contactPageAddress && (
+              <div className="flex items-start">
+                <MapPin className="mr-3 h-5 w-5 text-accent flex-shrink-0 mt-1" />
+                <div>
+                  <span className="font-semibold text-foreground">Address:</span>
+                  <p className="whitespace-pre-line">{pageContent.contactPageAddress}</p>
+                </div>
+              </div>
+            )}
+            {pageContent.contactPageAdditionalInfo && (
+              <>
+                {(pageContent.contactPagePhoneNumber || pageContent.contactPageAddress) && <Separator className="my-3"/>}
+                <div className="flex items-start">
+                  <Info className="mr-3 h-5 w-5 text-accent flex-shrink-0 mt-1" />
+                  <div>
+                    <span className="font-semibold text-foreground">More Info:</span>
+                    <p className="whitespace-pre-line">{pageContent.contactPageAdditionalInfo}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
