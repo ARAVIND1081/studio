@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -24,7 +25,7 @@ export function Header() {
           ShopSphere
         </Link>
         <nav className="space-x-6 flex items-center">
-          <Link href="/" className="text-foreground hover:text-accent transition-colors">
+          <Link href="/shop" className="text-foreground hover:text-accent transition-colors">
             Products
           </Link>
           <Link href="/contact" className="text-foreground hover:text-accent transition-colors">
