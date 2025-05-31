@@ -173,6 +173,10 @@ let siteSettingsData: SiteSettings = {
   siteName: "ShopSphere",
   siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
   contentManagementInfoText: "Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page. This functionality is currently under development.",
+  homePageNoProductsTitle: "Our Shelves Are Being Restocked!",
+  homePageNoProductsDescription: "We're currently updating our inventory with exciting new products. Please check back soon!",
+  contactPageTitle: "Get In Touch",
+  contactPageDescription: "We'd love to hear from you! Whether you have a question about our products, an order, or just want to say hello, please use the form below.",
 };
 
 export const getSiteSettings = (): SiteSettings => {

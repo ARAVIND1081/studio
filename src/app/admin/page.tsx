@@ -32,12 +32,20 @@ export default function AdminPage() {
   });
   const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
 
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ siteName: '', siteTagline: '', contentManagementInfoText: '' });
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ 
+    siteName: '', 
+    siteTagline: '', 
+    contentManagementInfoText: '',
+    homePageNoProductsTitle: '',
+    homePageNoProductsDescription: '',
+    contactPageTitle: '',
+    contactPageDescription: '',
+  });
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
 
   const [isContentDialogOpen, setIsContentDialogOpen] = useState(false);
-  const [currentContentInfoText, setCurrentContentInfoText] = useState('');
+  const [editableContentForm, setEditableContentForm] = useState<Partial<SiteSettings>>({});
 
 
   const { toast } = useToast();
@@ -54,8 +62,14 @@ export default function AdminPage() {
   const refreshSiteSettings = () => {
     const currentSettings = getSiteSettings();
     setSiteSettings(currentSettings);
-    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline }); // Only siteName and tagline for this dialog
-    setCurrentContentInfoText(currentSettings.contentManagementInfoText || '');
+    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
+    setEditableContentForm({
+      contentManagementInfoText: currentSettings.contentManagementInfoText,
+      homePageNoProductsTitle: currentSettings.homePageNoProductsTitle,
+      homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
+      contactPageTitle: currentSettings.contactPageTitle,
+      contactPageDescription: currentSettings.contactPageDescription,
+    });
   }
 
   const handleDeleteProduct = (productId: string) => {
@@ -76,7 +90,7 @@ export default function AdminPage() {
     if (formType === 'settings') {
         setCurrentSettingsForm(prev => ({ ...prev, [name]: value }));
     } else if (formType === 'content') {
-        setCurrentContentInfoText(value);
+        setEditableContentForm(prev => ({ ...prev, [name]: value }));
     } else {
         const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
         if (formType === 'add') {
@@ -149,7 +163,6 @@ export default function AdminPage() {
       return;
     }
     try {
-      // Ensure we only update the fields relevant to this dialog
       const settingsToUpdate: Partial<SiteSettings> = {
         siteName: currentSettingsForm.siteName,
         siteTagline: currentSettingsForm.siteTagline,
@@ -166,24 +179,36 @@ export default function AdminPage() {
 
   const handleOpenContentDialog = () => {
     const currentSettings = getSiteSettings();
-    setCurrentContentInfoText(currentSettings.contentManagementInfoText || '');
+    setEditableContentForm({
+        contentManagementInfoText: currentSettings.contentManagementInfoText,
+        homePageNoProductsTitle: currentSettings.homePageNoProductsTitle,
+        homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
+        contactPageTitle: currentSettings.contactPageTitle,
+        contactPageDescription: currentSettings.contactPageDescription,
+    });
     setIsContentDialogOpen(true);
   };
 
-  const handleUpdateContentInfoText = (e: FormEvent<HTMLFormElement>) => {
+  const handleUpdatePageContent = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentContentInfoText) {
-       toast({ title: "Missing Field", description: "Content Management Info Text cannot be empty.", variant: "destructive" });
+    // Basic validation, can be expanded
+    if (!editableContentForm.contentManagementInfoText || 
+        !editableContentForm.homePageNoProductsTitle ||
+        !editableContentForm.homePageNoProductsDescription ||
+        !editableContentForm.contactPageTitle ||
+        !editableContentForm.contactPageDescription
+        ) {
+       toast({ title: "Missing Fields", description: "All page content fields must be filled.", variant: "destructive" });
        return;
     }
     try {
-      updateSiteSettings({ contentManagementInfoText: currentContentInfoText });
+      updateSiteSettings(editableContentForm); // editableContentForm now contains all content fields
       refreshSiteSettings();
-      toast({ title: "Content Updated", description: "Content management info text has been updated." });
+      toast({ title: "Page Content Updated", description: "Relevant page content sections have been updated." });
       setIsContentDialogOpen(false);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to update content info text.", variant: "destructive" });
-      console.error("Error updating content info text:", error);
+      toast({ title: "Error", description: "Failed to update page content.", variant: "destructive" });
+      console.error("Error updating page content:", error);
     }
   };
 
@@ -197,7 +222,7 @@ export default function AdminPage() {
         </h1>
       </div>
       <p className="text-lg text-muted-foreground">
-        Welcome to the ShopSphere Admin Panel. Manage your products, site content, and settings from here.
+        Welcome to the ShopSphere Admin Panel. Manage your products, site settings, and page content from here.
       </p>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -252,7 +277,6 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
-            {/* Edit Product Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -362,39 +386,89 @@ export default function AdminPage() {
               <FileText className="mr-2 h-6 w-6 text-accent"/> Content Management
             </CardTitle>
             <CardDescription>
-              Edit informational text for various site sections.
+              Edit key text content for various site pages.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Current Info Text: "{siteSettings.contentManagementInfoText || "Default placeholder text if not set."}"
+              Current Admin Info Text: "{siteSettings.contentManagementInfoText || "Default placeholder text."}"
             </p>
             <Dialog open={isContentDialogOpen} onOpenChange={setIsContentDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto bg-primary hover:bg-accent hover:text-accent-foreground" onClick={handleOpenContentDialog}>
-                  <Edit className="mr-2 h-5 w-5" /> Manage Content Info Text
+                  <Edit className="mr-2 h-5 w-5" /> Edit Page Content
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Edit Content Management Info Text</DialogTitle>
+                  <DialogTitle>Edit Page Content</DialogTitle>
                   <DialogDescription>
-                    Update the informational text displayed in the content management section.
+                    Update key informational text displayed on various pages.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdateContentInfoText} className="grid gap-4 py-4">
-                    <Label htmlFor="contentManagementInfoText" className="sr-only">Content Management Info Text</Label>
-                    <Textarea 
-                        id="contentManagementInfoText" 
-                        name="contentManagementInfoText" 
-                        value={currentContentInfoText} 
-                        onChange={(e) => handleInputChange(e, 'content')}
-                        className="col-span-3 min-h-[150px]" 
-                        placeholder="Enter informational text for the Content Management section..."
-                        required 
-                    />
-                  <DialogFooter>
-                    <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Content Text</Button>
+                <form onSubmit={handleUpdatePageContent} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                    <div>
+                        <Label htmlFor="contentManagementInfoText">Admin Dashboard Info Text</Label>
+                        <Textarea 
+                            id="contentManagementInfoText" 
+                            name="contentManagementInfoText" 
+                            value={editableContentForm.contentManagementInfoText || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="min-h-[100px] mt-1" 
+                            placeholder="Enter informational text for the Admin Dashboard..."
+                            required 
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="homePageNoProductsTitle">Home Page: "No Products" Title</Label>
+                        <Input 
+                            id="homePageNoProductsTitle" 
+                            name="homePageNoProductsTitle" 
+                            value={editableContentForm.homePageNoProductsTitle || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="mt-1" 
+                            placeholder="Title for no products alert..."
+                            required 
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="homePageNoProductsDescription">Home Page: "No Products" Description</Label>
+                        <Textarea 
+                            id="homePageNoProductsDescription" 
+                            name="homePageNoProductsDescription" 
+                            value={editableContentForm.homePageNoProductsDescription || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="min-h-[100px] mt-1" 
+                            placeholder="Description for no products alert..."
+                            required 
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="contactPageTitle">Contact Page: Title</Label>
+                        <Input 
+                            id="contactPageTitle" 
+                            name="contactPageTitle" 
+                            value={editableContentForm.contactPageTitle || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="mt-1" 
+                            placeholder="Main title for Contact Us page..."
+                            required 
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="contactPageDescription">Contact Page: Description</Label>
+                        <Textarea 
+                            id="contactPageDescription" 
+                            name="contactPageDescription" 
+                            value={editableContentForm.contactPageDescription || ''} 
+                            onChange={(e) => handleInputChange(e, 'content')}
+                            className="min-h-[100px] mt-1" 
+                            placeholder="Introductory description for Contact Us page..."
+                            required 
+                        />
+                    </div>
+                  <DialogFooter className="mt-2">
+                    <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Page Content</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -404,7 +478,7 @@ export default function AdminPage() {
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management, site settings (Site Name, Tagline), and Content Info Text are now interactive. Changes are in-memory and will reset on server restart.
+        Product management, site settings (Name, Tagline), and specific page content sections are now interactive. Changes are in-memory and will reset on server restart.
       </p>
     </div>
   );

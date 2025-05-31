@@ -1,8 +1,10 @@
+
 'use client';
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, MessageSquare, User } from "lucide-react";
+import { getSiteSettings } from "@/lib/data";
+import type { SiteSettings } from "@/types";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -30,6 +34,19 @@ type ContactFormValues = z.infer<typeof contactFormSchema>;
 
 export default function ContactPage() {
   const { toast } = useToast();
+  const [pageContent, setPageContent] = useState<{title: string, description: string}>({
+    title: "Contact Us",
+    description: "Have a question or feedback? Fill out the form below and we'll be in touch.",
+  });
+
+  useEffect(() => {
+    const settings = getSiteSettings();
+    setPageContent({
+      title: settings.contactPageTitle || "Contact Us",
+      description: settings.contactPageDescription || "Have a question or feedback? Fill out the form below and we'll be in touch.",
+    });
+  }, []);
+  
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
@@ -40,13 +57,12 @@ export default function ContactPage() {
   });
 
   async function onSubmit(data: ContactFormValues) {
-    // In a real app, you'd send this data to a backend API
     console.log("Contact form submitted:", data);
     toast({
       title: "Message Sent!",
       description: "Thank you for contacting us. We'll get back to you soon.",
     });
-    form.reset(); // Reset form after submission
+    form.reset();
   }
 
   return (
@@ -54,9 +70,9 @@ export default function ContactPage() {
       <Card className="shadow-xl">
         <CardHeader className="text-center">
           <Mail className="mx-auto h-12 w-12 text-accent mb-4" />
-          <CardTitle className="text-4xl font-bold font-headline text-primary">Contact Us</CardTitle>
+          <CardTitle className="text-4xl font-bold font-headline text-primary">{pageContent.title}</CardTitle>
           <CardDescription className="text-lg text-muted-foreground">
-            Have a question or feedback? Fill out the form below and we'll be in touch.
+            {pageContent.description}
           </CardDescription>
         </CardHeader>
         <CardContent>

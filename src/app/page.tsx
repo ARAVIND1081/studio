@@ -3,7 +3,7 @@
 
 import { ProductCard } from '@/components/products/ProductCard';
 import { getAllProducts, getSiteSettings } from '@/lib/data';
-import type { Product } from '@/types';
+import type { Product, SiteSettings } from '@/types';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShoppingBag } from 'lucide-react';
@@ -11,16 +11,17 @@ import { ShoppingBag } from 'lucide-react';
 export default function HomePage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [siteTagline, setSiteTagline] = useState("Your premier destination for luxury and style. Explore our curated collection.");
-  const [siteName, setSiteName] = useState("ShopSphere");
-
+  const [currentSiteSettings, setCurrentSiteSettings] = useState<SiteSettings>({
+    siteName: "ShopSphere",
+    siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
+    homePageNoProductsTitle: "Our Shelves Are Being Restocked!",
+    homePageNoProductsDescription: "We're currently updating our inventory with exciting new products. Please check back soon!",
+  });
 
   useEffect(() => {
     const settings = getSiteSettings();
-    setSiteName(settings.siteName);
-    setSiteTagline(settings.siteTagline);
+    setCurrentSiteSettings(settings);
     
-    // Simulate fetching products
     setTimeout(() => {
       setAllProducts(getAllProducts()); 
       setIsLoading(false);
@@ -45,9 +46,9 @@ export default function HomePage() {
   return (
     <div>
       <div className="mb-12 text-center">
-        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to {siteName}</h1>
+        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to {currentSiteSettings.siteName}</h1>
         <p className="text-xl text-muted-foreground">
-          {siteTagline}
+          {currentSiteSettings.siteTagline}
         </p>
       </div>
       
@@ -60,9 +61,9 @@ export default function HomePage() {
       ) : (
         <Alert variant="default" className="mt-8 border-accent text-accent-foreground bg-accent/10 max-w-md mx-auto">
             <ShoppingBag className="h-5 w-5 text-accent" />
-            <AlertTitle className="font-headline text-accent">No Products Available</AlertTitle>
+            <AlertTitle className="font-headline text-accent">{currentSiteSettings.homePageNoProductsTitle}</AlertTitle>
             <AlertDescription>
-            We're currently updating our inventory. Please check back later to see our amazing products!
+            {currentSiteSettings.homePageNoProductsDescription}
             </AlertDescription>
         </Alert>
       )}
