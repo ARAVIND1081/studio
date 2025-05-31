@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Search, Shield } from 'lucide-react';
+import { ShoppingCart, Search, Shield, LogIn, UserPlus } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,7 @@ export function Header() {
         <Link href="/" className="text-3xl font-bold font-headline text-primary hover:text-accent transition-colors">
           {siteName}
         </Link>
-        <nav className="space-x-6 flex items-center">
+        <nav className="space-x-4 flex items-center">
           <Link href="/" className="text-foreground hover:text-accent transition-colors">
             Home
           </Link>
@@ -37,6 +37,12 @@ export function Header() {
           </Link>
           <Link href="/contact" className="text-foreground hover:text-accent transition-colors">
             Contact
+          </Link>
+          <Link href="/login" className="text-foreground hover:text-accent transition-colors flex items-center">
+            <LogIn className="mr-1 h-4 w-4" /> Login
+          </Link>
+          <Link href="/signup" className="text-foreground hover:text-accent transition-colors flex items-center">
+            <UserPlus className="mr-1 h-4 w-4" /> Sign Up
           </Link>
           <Link href="/admin" className="text-foreground hover:text-accent transition-colors flex items-center">
             <Shield className="mr-1 h-4 w-4" /> Admin
