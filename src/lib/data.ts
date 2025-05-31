@@ -4,6 +4,42 @@ import type { Product, Category, Review, ProductSpecification, SiteSettings, Use
 // Keep CATEGORIES exported as it's static data
 export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
 
+// localStorage keys
+const PRODUCTS_STORAGE_KEY = 'shopSphereProducts';
+const SETTINGS_STORAGE_KEY = 'shopSphereSettings';
+const USERS_STORAGE_KEY = 'shopSphereUsers';
+
+// --- Helper function to load from localStorage ---
+function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') {
+    return defaultValue;
+  }
+  try {
+    const storedValue = localStorage.getItem(key);
+    if (storedValue) {
+      return JSON.parse(storedValue);
+    }
+  } catch (error) {
+    console.error(`Error loading ${key} from localStorage:`, error);
+    // If parsing fails, remove the corrupted item
+    localStorage.removeItem(key);
+  }
+  return defaultValue;
+}
+
+// --- Helper function to save to localStorage ---
+function saveToLocalStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+}
+
+
 const sampleReviews: Review[] = [
   { id: 'review1', author: 'Jane Doe', rating: 5, comment: 'Absolutely fantastic product!', date: '2023-10-01' },
   { id: 'review2', author: 'John Smith', rating: 4, comment: 'Very good, but a bit pricey.', date: '2023-10-05' },
@@ -14,15 +50,15 @@ const sampleSpecifications: ProductSpecification[] = [
   { name: 'Origin', value: 'Made in Italy' },
 ];
 
-// Internal store for products
-let productsData: Product[] = [
+// Internal store for products - Initialized from localStorage or defaults
+let productsData: Product[] = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, [
   {
     id: '1',
     name: 'Elegant Smartwatch X1',
     description: 'A fusion of classic design and modern technology. Stay connected in style.',
     price: 299.99,
     category: 'Electronics',
-    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
+    imageUrl: 'https://placehold.co/800x600.png',
     images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'],
     rating: 4.8,
     specifications: [
@@ -38,7 +74,7 @@ let productsData: Product[] = [
     description: 'Handcrafted 100% silk scarf with an intricate design. The perfect accessory.',
     price: 120.00,
     category: 'Apparel',
-    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
+    imageUrl: 'https://placehold.co/800x600.png',
     images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?3'],
     rating: 4.9,
     specifications: sampleSpecifications,
@@ -50,7 +86,7 @@ let productsData: Product[] = [
     description: 'Brew the perfect cup every morning with this stylish and efficient coffee maker.',
     price: 89.50,
     category: 'Home Goods',
-    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
+    imageUrl: 'https://placehold.co/800x600.png',
     images: ['https://placehold.co/800x600.png'],
     rating: 4.5,
     specifications: [
@@ -66,7 +102,7 @@ let productsData: Product[] = [
     price: 45.00,
     category: 'Books',
     imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
+    images: ['https://placehold.co/600x400.png'],
     rating: 4.7,
     specifications: [
       { name: 'Pages', value: '320' },
@@ -81,7 +117,7 @@ let productsData: Product[] = [
     price: 199.00,
     category: 'Beauty',
     imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
+    images: ['https://placehold.co/600x400.png'],
     rating: 5.0,
     specifications: [{ name: 'Volume', value: '100ml' }],
     reviews: sampleReviews,
@@ -93,7 +129,7 @@ let productsData: Product[] = [
     price: 250.00,
     category: 'Apparel',
     imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
+    images: ['https://placehold.co/600x400.png'],
     rating: 4.6,
     reviews: [],
     specifications: [],
@@ -105,7 +141,7 @@ let productsData: Product[] = [
     price: 349.00,
     category: 'Electronics',
     imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
+    images: ['https://placehold.co/600x400.png'],
     rating: 4.9,
     reviews: [],
     specifications: [],
@@ -117,14 +153,14 @@ let productsData: Product[] = [
     price: 75.00,
     category: 'Home Goods',
     imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
+    images: ['https://placehold.co/600x400.png'],
     rating: 4.3,
     reviews: [],
     specifications: [],
   },
-];
+]);
 
-// Ensure consistency for all products initially
+// Ensure consistency for all products after loading/initializing
 productsData = productsData.map(product => {
   const defaultImg = 'https://placehold.co/600x400.png';
   let currentImages = product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : []);
@@ -137,6 +173,11 @@ productsData = productsData.map(product => {
     imageUrl: currentImages[0],
   };
 });
+
+// Save initial products to localStorage if it was empty
+if (typeof window !== 'undefined' && !localStorage.getItem(PRODUCTS_STORAGE_KEY)) {
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+}
 
 
 // --- CRUD Functions for Products ---
@@ -161,21 +202,22 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
 
   const defaultImageUrl = 'https://placehold.co/600x400.png';
 
-  const images = productInput.images && productInput.images.length > 0 
-                 ? productInput.images 
+  const images = productInput.images && productInput.images.length > 0
+                 ? productInput.images
                  : (productInput.imageUrl ? [productInput.imageUrl] : [defaultImageUrl]);
 
   const newProduct: Product = {
     ...productInput,
     id: newId,
-    imageUrl: images[0], // Ensure imageUrl is from the images array
+    imageUrl: images[0],
     images: images,
     rating: productInput.rating ?? 0,
     specifications: productInput.specifications ?? [],
     reviews: productInput.reviews ?? [],
   };
   productsData.push(newProduct);
-  return { ...newProduct }; 
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+  return { ...newProduct };
 };
 
 // UPDATE
@@ -184,33 +226,34 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
   if (productIndex === -1) {
     return undefined;
   }
-  
+
   const existingProduct = productsData[productIndex];
   let updatedProductData = { ...existingProduct, ...updates };
 
-  // If images are being updated, ensure imageUrl is also updated to the first image
   if (updates.images && updates.images.length > 0) {
     updatedProductData.imageUrl = updates.images[0];
-  } else if (updates.images && updates.images.length === 0) { 
-    // If images array is cleared, fall back to a default
+  } else if (updates.images && updates.images.length === 0) {
     const defaultImg = 'https://placehold.co/600x400.png';
     updatedProductData.imageUrl = defaultImg;
     updatedProductData.images = [defaultImg];
   } else if (updates.imageUrl && (!updates.images || updates.images.length === 0)) {
-    // If only imageUrl is updated, make images array consistent
     updatedProductData.images = [updates.imageUrl];
   }
 
-
   productsData[productIndex] = updatedProductData;
-  return { ...productsData[productIndex] }; 
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+  return { ...productsData[productIndex] };
 };
 
 // DELETE
 export const deleteProduct = (id: string): boolean => {
   const initialLength = productsData.length;
   productsData = productsData.filter(p => p.id !== id);
-  return productsData.length < initialLength;
+  const success = productsData.length < initialLength;
+  if (success) {
+    saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+  }
+  return success;
 };
 
 // --- Product Reviews ---
@@ -232,24 +275,25 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
     author: reviewInput.author,
     rating: reviewInput.rating,
     comment: reviewInput.comment,
-    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+    date: new Date().toISOString().split('T')[0],
   };
 
   if (!product.reviews) {
     product.reviews = [];
   }
   product.reviews.push(newReview);
-  
+
   const totalRating = product.reviews.reduce((sum, r) => sum + r.rating, 0);
   product.rating = product.reviews.length > 0 ? parseFloat((totalRating / product.reviews.length).toFixed(1)) : 0;
 
-  productsData[productIndex] = product; // Update the product in the main array
-  return { ...product }; // Return a copy of the updated product
+  productsData[productIndex] = product;
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+  return { ...product };
 };
 
 
 // --- Site Settings ---
-let siteSettingsData: SiteSettings = {
+let siteSettingsData: SiteSettings = loadFromLocalStorage<SiteSettings>(SETTINGS_STORAGE_KEY, {
   siteName: "ShopSphere",
   siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
   contentManagementInfoText: "Manage your products, site settings, and page content from here.",
@@ -260,26 +304,37 @@ let siteSettingsData: SiteSettings = {
   contactPagePhoneNumber: "1-800-555-0199",
   contactPageAddress: "123 Luxury Lane, Shopsville, CA 90210",
   contactPageAdditionalInfo: "Our customer service team is available Monday to Friday, 9 AM - 5 PM PST.",
-};
+});
+
+// Save initial settings to localStorage if it was empty
+if (typeof window !== 'undefined' && !localStorage.getItem(SETTINGS_STORAGE_KEY)) {
+  saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
+}
 
 export const getSiteSettings = (): SiteSettings => {
-  return { ...siteSettingsData }; // Return a copy
+  return { ...siteSettingsData };
 };
 
 export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSettings => {
   siteSettingsData = { ...siteSettingsData, ...newSettings };
-  return { ...siteSettingsData }; // Return a copy
+  saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
+  return { ...siteSettingsData };
 };
 
 // --- User Management (In-memory, for UI Prototyping Only - NOT SECURE) ---
-let usersData: User[] = [
+let usersData: User[] = loadFromLocalStorage<User[]>(USERS_STORAGE_KEY, [
     { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' },
     { id: 'adminuser', email: 'admin@shopsphere.com', password: 'adminpass', name: 'Shop Admin' }
-];
+]);
+
+// Save initial users to localStorage if it was empty
+if (typeof window !== 'undefined' && !localStorage.getItem(USERS_STORAGE_KEY)) {
+  saveToLocalStorage(USERS_STORAGE_KEY, usersData);
+}
 
 export const getUserByEmail = (email: string): User | undefined => {
   const user = usersData.find(user => user.email === email);
-  return user ? {...user} : undefined; // Return a copy
+  return user ? {...user} : undefined;
 };
 
 export type UserCreateInput = Omit<User, 'id'>;
@@ -291,14 +346,16 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
   const newId = `user${usersData.length + 1}_${Date.now()}`;
   const newUser: User = { ...userInput, id: newId };
   usersData.push(newUser);
-  return { ...newUser }; // Return a copy
+  saveToLocalStorage(USERS_STORAGE_KEY, usersData);
+  return { ...newUser };
 };
 
 export const verifyUserCredentials = (email: string, pass: string): User | null => {
-    const user = usersData.find(u => u.email === email); 
-    if (user && user.password === pass) { 
-        return {...user}; 
+    const user = usersData.find(u => u.email === email);
+    if (user && user.password === pass) {
+        return {...user};
     }
     return null;
 }
 
+    
