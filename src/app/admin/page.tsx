@@ -8,19 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound, AlertTriangle, UserX } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
 
-// --- IMPORTANT: Basic illustrative login ---
-// --- NOT FOR PRODUCTION USE. LACKS SECURITY. ---
-const HARDCODED_USERNAME = "admin"; // Internal admin dashboard login
-const HARDCODED_PASSWORD = "password"; // Internal admin dashboard password
-const SUPER_ADMIN_EMAIL = "admin@shopsphere.com"; // Main application user who is allowed to see the admin login
-// --- End of illustrative login warning ---
+// --- IMPORTANT: Admin User Identification ---
+const SUPER_ADMIN_EMAIL = "admin@shopsphere.com"; // Main application user who is allowed to access the admin dashboard
+// --- End of Admin User Identification ---
 
 export default function AdminPage() {
   const { currentUser, isLoading: authIsLoading, logout: mainAppLogout } = useAuth();
@@ -63,21 +60,15 @@ export default function AdminPage() {
 
   const { toast } = useToast();
 
-  // Admin's internal login state for the secondary admin login
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [loginUsername, setLoginUsername] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-
   const isAuthorizedAdminUser = !authIsLoading && currentUser?.email === SUPER_ADMIN_EMAIL;
 
   useEffect(() => {
-    // Load admin data only if main user is the designated admin AND admin is internally authenticated
-    if (isAuthorizedAdminUser && isAdminAuthenticated) {
+    // Load admin data only if main user is the designated admin
+    if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshSiteSettings();
     }
-  }, [isAuthorizedAdminUser, isAdminAuthenticated]);
+  }, [isAuthorizedAdminUser]);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
@@ -86,6 +77,7 @@ export default function AdminPage() {
   const refreshSiteSettings = () => {
     const currentSettings = getSiteSettings();
     setSiteSettings(currentSettings);
+    // Initialize forms with current settings data
     setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
     setEditableContentForm({
       contentManagementInfoText: currentSettings.contentManagementInfoText,
@@ -241,25 +233,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleInternalAdminLogin = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoginError(null);
-    if (loginUsername === HARDCODED_USERNAME && loginPassword === HARDCODED_PASSWORD) {
-      setIsAdminAuthenticated(true);
-      setLoginUsername("");
-      setLoginPassword("");
-      toast({title: "Admin Login Successful", description: "Welcome to the Admin Dashboard."});
-    } else {
-      setLoginError("Invalid admin username or password.");
-      toast({title: "Admin Login Failed", description: "Invalid admin username or password.", variant: "destructive"});
-    }
-  };
-
-  const handleInternalAdminLogout = () => {
-    setIsAdminAuthenticated(false);
-    toast({title: "Admin Logged Out", description: "You have been logged out of the Admin Dashboard."});
-  };
-
   if (authIsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -294,54 +267,7 @@ export default function AdminPage() {
     );
   }
 
-  // If main app user IS the designated admin, then show the admin's internal login or dashboard
-  if (!isAdminAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader className="text-center">
-            <KeyRound className="mx-auto h-12 w-12 text-primary mb-3" />
-            <CardTitle className="text-3xl font-bold font-headline">Admin Login</CardTitle>
-            <CardDescription>Enter your admin credentials to access the dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleInternalAdminLogin} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="admin-username">Admin Username</Label>
-                <Input
-                  id="admin-username"
-                  type="text"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="admin"
-                  required
-                  className="py-3 px-4 text-base"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin-password">Admin Password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="password"
-                  required
-                  className="py-3 px-4 text-base"
-                />
-              </div>
-              {loginError && <p className="text-sm text-destructive text-center">{loginError}</p>}
-              <Button type="submit" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground text-lg py-3">
-                Login to Admin
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // If main app user is designated admin AND admin is internally authenticated:
+  // If main app user IS the designated admin:
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -349,14 +275,9 @@ export default function AdminPage() {
           <Shield className="mr-3 h-10 w-10 text-accent" />
           Admin Dashboard
         </h1>
-        <div className="space-x-2">
-            <Button variant="outline" onClick={handleInternalAdminLogout} className="text-destructive hover:border-destructive hover:text-destructive">
-                <LogOut className="mr-2 h-5 w-5" /> Logout from Admin Section
-            </Button>
-            <Button variant="outline" onClick={() => mainAppLogout()} className="hover:border-destructive hover:text-destructive">
-                <LogOut className="mr-2 h-5 w-5" /> Logout from App
-            </Button>
-        </div>
+        <Button variant="outline" onClick={() => mainAppLogout()} className="hover:border-destructive hover:text-destructive">
+          <LogOut className="mr-2 h-5 w-5" /> Logout from App
+        </Button>
       </div>
       <p className="text-lg text-muted-foreground">
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
@@ -651,7 +572,7 @@ export default function AdminPage() {
 
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
-        Admin login is illustrative. Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}', then internal admin login ('admin'/'password').
+        Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}'.
       </p>
     </div>
   );
