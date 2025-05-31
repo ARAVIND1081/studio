@@ -35,4 +35,5 @@ export type Category = string;
 export interface SiteSettings {
   siteName: string;
   siteTagline: string;
+  contentManagementInfoText?: string; // Added new field
 }

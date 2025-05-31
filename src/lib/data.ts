@@ -172,6 +172,7 @@ export const deleteProduct = (id: string): boolean => {
 let siteSettingsData: SiteSettings = {
   siteName: "ShopSphere",
   siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
+  contentManagementInfoText: "Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page. This functionality is currently under development.",
 };
 
 export const getSiteSettings = (): SiteSettings => {

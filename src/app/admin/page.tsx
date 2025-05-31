@@ -32,7 +32,7 @@ export default function AdminPage() {
   });
   const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
 
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ siteName: '', siteTagline: '' });
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ siteName: '', siteTagline: '', contentManagementInfoText: '' });
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
 
@@ -138,17 +138,15 @@ export default function AdminPage() {
 
   const handleUpdateSiteSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentSettingsForm.siteName || !currentSettingsForm.siteTagline) {
-      toast({ title: "Missing Fields", description: "Site Name and Tagline cannot be empty.", variant: "destructive" });
+    if (!currentSettingsForm.siteName || !currentSettingsForm.siteTagline || !currentSettingsForm.contentManagementInfoText) {
+      toast({ title: "Missing Fields", description: "Site Name, Tagline, and Content Management Info Text cannot be empty.", variant: "destructive" });
       return;
     }
     try {
       updateSiteSettings(currentSettingsForm);
-      refreshSiteSettings(); // Refresh settings displayed on admin page if any, and internal state
+      refreshSiteSettings(); 
       toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
       setIsSettingsDialogOpen(false);
-      // Optionally, force a reload or use a global state to reflect changes in Header/Footer immediately
-      // For now, Header/Footer will update on next mount/navigation.
     } catch (error) {
       toast({ title: "Error", description: "Failed to update site settings.", variant: "destructive" });
       console.error("Error updating site settings:", error);
@@ -285,7 +283,7 @@ export default function AdminPage() {
               <Settings className="mr-2 h-6 w-6 text-accent"/> Site Settings
             </CardTitle>
             <CardDescription>
-              Manage general site configurations like Site Name and Tagline.
+              Manage general site configurations like Site Name, Tagline, and admin content placeholders.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -295,14 +293,14 @@ export default function AdminPage() {
                   Configure Settings
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-md"> {/* Adjusted width for more content */}
                 <DialogHeader>
                   <DialogTitle>Configure Site Settings</DialogTitle>
                   <DialogDescription>
-                    Update your site's name and tagline. Click save when you're done.
+                    Update your site's name, tagline, and admin content placeholders. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdateSiteSettings} className="grid gap-4 py-4">
+                <form onSubmit={handleUpdateSiteSettings} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="siteName" className="text-right">Site Name</Label>
                     <Input id="siteName" name="siteName" value={currentSettingsForm.siteName || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
@@ -311,7 +309,19 @@ export default function AdminPage() {
                     <Label htmlFor="siteTagline" className="text-right">Site Tagline</Label>
                     <Textarea id="siteTagline" name="siteTagline" value={currentSettingsForm.siteTagline || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
                   </div>
-                  <DialogFooter>
+                  <div className="grid grid-cols-4 items-start gap-4 pt-2"> {/* items-start for better Textarea alignment */}
+                    <Label htmlFor="contentManagementInfoText" className="text-right pt-2">Content Info</Label>
+                    <Textarea 
+                        id="contentManagementInfoText" 
+                        name="contentManagementInfoText" 
+                        value={currentSettingsForm.contentManagementInfoText || ''} 
+                        onChange={(e) => handleInputChange(e, 'settings')} 
+                        className="col-span-3 min-h-[100px]" 
+                        placeholder="Enter informational text for the Content Management section..."
+                        required 
+                    />
+                  </div>
+                  <DialogFooter className="mt-2">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Settings</Button>
                   </DialogFooter>
                 </form>
@@ -330,21 +340,20 @@ export default function AdminPage() {
               <FileText className="mr-2 h-6 w-6 text-accent"/> Content Management
             </CardTitle>
             <CardDescription>
-              Edit page content, promotional banners, etc. (Placeholder).
+              Edit page content, promotional banners, etc. (Overall feature is a placeholder).
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Tools to edit static content on pages like 'About Us', 'Contact', or promotional sections on the Home Page.
-              This functionality is currently under development.
+              {siteSettings.contentManagementInfoText || "Default placeholder text if not set."}
             </p>
-            <Button className="mt-4" disabled>Manage Content</Button>
+            {/* Button removed as the text above is now editable via Site Settings */}
           </CardContent>
         </Card>
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management and site settings (Site Name, Tagline) are now interactive. Changes are in-memory and will reset on server restart.
+        Product management and site settings (Site Name, Tagline, Content Info Text) are now interactive. Changes are in-memory and will reset on server restart.
       </p>
     </div>
   );
