@@ -19,11 +19,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
-import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
+import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock, Bank } from "lucide-react";
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -47,6 +48,7 @@ const checkoutFormSchema = z.object({
     cvv: z.string(),
   }).optional(),
   upiId: z.string().optional(),
+  selectedBank: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.paymentMethod === 'card') {
     if (!data.cardDetails?.cardHolderName || data.cardDetails.cardHolderName.length < 2) {
@@ -67,6 +69,11 @@ const checkoutFormSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid UPI ID is required (e.g., yourname@bank)", path: ["upiId"] });
     }
   }
+  if (data.paymentMethod === 'netbanking') {
+    if (!data.selectedBank || data.selectedBank.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select your bank", path: ["selectedBank"] });
+    }
+  }
 });
 
 
@@ -84,6 +91,20 @@ const paymentMethods = [
     { id: 'cod', label: 'Cash on Delivery', icon: HandCoins },
     { id: 'netbanking', label: 'Net Banking', icon: Landmark },
 ];
+
+const mockBanks = [
+  "State Bank of India",
+  "HDFC Bank",
+  "ICICI Bank",
+  "Axis Bank",
+  "Kotak Mahindra Bank",
+  "Punjab National Bank",
+  "Bank of Baroda",
+  "Canara Bank",
+  "Union Bank of India",
+  "Bank of India",
+];
+
 
 export default function CheckoutPage() {
   const { toast } = useToast();
@@ -118,6 +139,7 @@ export default function CheckoutPage() {
         cvv: "",
       },
       upiId: "",
+      selectedBank: "",
     },
   });
 
@@ -136,13 +158,16 @@ export default function CheckoutPage() {
 
   const onSubmit = (data: CheckoutFormValues) => {
     console.log("Checkout data:", data);
-    // Log specific payment details based on method
+    
     let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
     if (data.paymentMethod === 'card' && data.cardDetails) {
         paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
     } else if (data.paymentMethod === 'upi' && data.upiId) {
         paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+    } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
+        paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
     }
+
 
     toast({
       title: "Order Placed Successfully!",
@@ -295,7 +320,14 @@ export default function CheckoutPage() {
                   name="paymentMethod"
                   render={({ field }) => (
                     <RadioGroup
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Reset other payment details when method changes
+                        form.setValue('cardDetails', { cardNumber: "", cardHolderName: "", expiryDate: "", cvv: "" });
+                        form.setValue('upiId', "");
+                        form.setValue('selectedBank', "");
+                        form.clearErrors(['cardDetails.cardHolderName', 'cardDetails.cardNumber', 'cardDetails.expiryDate', 'cardDetails.cvv', 'upiId', 'selectedBank']);
+                      }}
                       value={field.value}
                       className="space-y-3"
                     >
@@ -366,17 +398,41 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* Conditional Fields for Net Banking */}
+                {watchedPaymentMethod === 'netbanking' && (
+                  <div className="space-y-4 pt-4 border-t mt-4">
+                    <h3 className="text-lg font-medium text-foreground">Select Your Bank</h3>
+                     <FormField
+                        control={form.control}
+                        name="selectedBank"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Bank className="mr-2 h-4 w-4 text-muted-foreground" /> Bank Name</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choose your bank" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {mockBanks.map(bank => (
+                                  <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    <p className="text-sm text-muted-foreground mt-2">You will be redirected to your bank's portal to complete the payment securely. (This is a mock-up)</p>
+                  </div>
+                )}
+
+
                 {/* Info for Cash on Delivery */}
                 {watchedPaymentMethod === 'cod' && (
                   <div className="pt-4 border-t mt-4">
                     <p className="text-sm text-muted-foreground">You will pay with cash upon delivery of your order.</p>
-                  </div>
-                )}
-
-                 {/* Info for Net Banking */}
-                 {watchedPaymentMethod === 'netbanking' && (
-                  <div className="pt-4 border-t mt-4">
-                    <p className="text-sm text-muted-foreground">You will be redirected to your bank's portal to complete the payment securely. (This is a mock-up)</p>
                   </div>
                 )}
 
@@ -438,5 +494,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
