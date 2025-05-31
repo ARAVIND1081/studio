@@ -2,7 +2,7 @@
 'use client';
 
 import { ProductCard } from '@/components/products/ProductCard';
-import { PRODUCTS } from '@/lib/data';
+import { getAllProducts } from '@/lib/data'; // Changed from PRODUCTS
 import type { Product } from '@/types';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,7 +15,7 @@ export default function HomePage() {
   useEffect(() => {
     // Simulate fetching products
     setTimeout(() => {
-      setAllProducts(PRODUCTS);
+      setAllProducts(getAllProducts()); // Use getAllProducts
       setIsLoading(false);
     }, 500); // Simulating network delay
   }, []);
@@ -40,7 +40,7 @@ export default function HomePage() {
       <div className="mb-12 text-center">
         <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to ShopSphere</h1>
         <p className="text-xl text-muted-foreground">
-          Discover our exclusive collection of curated products.
+          Your premier destination for luxury and style. Explore our curated collection.
         </p>
       </div>
       

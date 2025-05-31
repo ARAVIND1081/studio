@@ -3,11 +3,19 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PRODUCTS } from "@/lib/data";
+import { getAllProducts } from "@/lib/data"; // Changed from PRODUCTS
 import Link from "next/link";
 import { Shield, Edit3, Trash2, Settings, FileText } from 'lucide-react';
+import type { Product } from "@/types";
+import { useEffect, useState } from "react";
 
 export default function AdminPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    setProducts(getAllProducts());
+  }, []);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -32,7 +40,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="max-h-72 overflow-y-auto pr-2 space-y-3">
-              {PRODUCTS.map(product => (
+              {products.map(product => (
                 <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
                   <div>
                     <p className="font-semibold">{product.name}</p>
@@ -49,7 +57,7 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
-            {PRODUCTS.length === 0 && <p className="text-muted-foreground">No products found.</p>}
+            {products.length === 0 && <p className="text-muted-foreground">No products found.</p>}
              <Button className="w-full mt-4" disabled>Add New Product</Button>
           </CardContent>
         </Card>
@@ -92,7 +100,7 @@ export default function AdminPage() {
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Please note: Full editing capabilities require further development, including backend integration and robust authentication.
+        Please note: Full editing capabilities require further development, including backend integration and robust authentication. The current product list is managed in-memory.
       </p>
     </div>
   );

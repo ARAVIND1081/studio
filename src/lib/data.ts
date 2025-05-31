@@ -1,5 +1,7 @@
+
 import type { Product, Category, Review, ProductSpecification } from '@/types';
 
+// Keep CATEGORIES exported as it's static data
 export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
 
 const sampleReviews: Review[] = [
@@ -12,7 +14,8 @@ const sampleSpecifications: ProductSpecification[] = [
   { name: 'Origin', value: 'Made in Italy' },
 ];
 
-export const PRODUCTS: Product[] = [
+// Internal store for products
+let productsData: Product[] = [
   {
     id: '1',
     name: 'Elegant Smartwatch X1',
@@ -68,6 +71,7 @@ export const PRODUCTS: Product[] = [
       { name: 'Pages', value: '320' },
       { name: 'Publisher', value: 'Prestige Press' },
     ],
+    reviews: [],
   },
   {
     id: '5',
@@ -88,6 +92,8 @@ export const PRODUCTS: Product[] = [
     category: 'Apparel',
     imageUrl: 'https://placehold.co/600x400.png',
     rating: 4.6,
+    reviews: [],
+    specifications: [],
   },
   {
     id: '7',
@@ -97,6 +103,8 @@ export const PRODUCTS: Product[] = [
     category: 'Electronics',
     imageUrl: 'https://placehold.co/600x400.png',
     rating: 4.9,
+    reviews: [],
+    specifications: [],
   },
   {
     id: '8',
@@ -106,9 +114,58 @@ export const PRODUCTS: Product[] = [
     category: 'Home Goods',
     imageUrl: 'https://placehold.co/600x400.png',
     rating: 4.3,
+    reviews: [],
+    specifications: [],
   },
 ];
 
+// --- CRUD Functions for Products ---
+
+// READ
+export const getAllProducts = (): Product[] => {
+  // Return a shallow copy of each product to prevent direct modification of the internal store through the returned array.
+  return productsData.map(p => ({ ...p }));
+};
+
 export const getProductById = (id: string): Product | undefined => {
-  return PRODUCTS.find(product => product.id === id);
+  const product = productsData.find(p => p.id === id);
+  // Return a shallow copy of the product if found.
+  return product ? { ...product } : undefined;
+};
+
+// CREATE
+export type ProductCreateInput = Omit<Product, 'id'>;
+
+export const addProduct = (productInput: ProductCreateInput): Product => {
+  const existingIds = productsData.map(p => parseInt(p.id, 10)).filter(id => !isNaN(id));
+  const newIdNumber = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+  const newId = newIdNumber.toString();
+
+  const newProduct: Product = {
+    ...productInput,
+    id: newId,
+    rating: productInput.rating ?? 0,
+    reviews: productInput.reviews ?? [],
+    specifications: productInput.specifications ?? [],
+    images: productInput.images ?? (productInput.imageUrl ? [productInput.imageUrl] : []),
+  };
+  productsData.push(newProduct);
+  return { ...newProduct }; // Return a copy
+};
+
+// UPDATE
+export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>): Product | undefined => {
+  const productIndex = productsData.findIndex(p => p.id === id);
+  if (productIndex === -1) {
+    return undefined;
+  }
+  productsData[productIndex] = { ...productsData[productIndex], ...updates };
+  return { ...productsData[productIndex] }; // Return a copy of the updated product
+};
+
+// DELETE
+export const deleteProduct = (id: string): boolean => {
+  const initialLength = productsData.length;
+  productsData = productsData.filter(p => p.id !== id);
+  return productsData.length < initialLength;
 };

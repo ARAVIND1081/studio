@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { productRecommendations, type ProductRecommendationsInput } from '@/ai/flows/product-recommendations';
-import { PRODUCTS, getProductById } from '@/lib/data';
+import { getProductById, getAllProducts } from '@/lib/data'; // Changed from PRODUCTS
 import type { Product } from '@/types';
 import { ProductCard } from './ProductCard';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,7 +29,8 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
         
         if (historyForAI.length === 0) {
           // Fallback: if no relevant history, recommend some popular/random items excluding current.
-          const fallbackRecommendations = PRODUCTS.filter(p => p.id !== currentProductId)
+          const fallbackRecommendations = getAllProducts() // Use getAllProducts
+                                                 .filter(p => p.id !== currentProductId)
                                                  .sort(() => 0.5 - Math.random()) // Shuffle
                                                  .slice(0, 3);
           setRecommendations(fallbackRecommendations);
@@ -49,7 +51,8 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
         console.error("Failed to fetch recommendations:", e);
         setError("Could not load recommendations at this time.");
         // Fallback on error
-        const fallbackRecommendations = PRODUCTS.filter(p => p.id !== currentProductId)
+        const fallbackRecommendations = getAllProducts() // Use getAllProducts
+                                               .filter(p => p.id !== currentProductId)
                                                .sort(() => 0.5 - Math.random())
                                                .slice(0, 3);
         setRecommendations(fallbackRecommendations);

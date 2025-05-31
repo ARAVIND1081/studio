@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { SortDropdown, type SortOption } from '@/components/products/SortDropdown';
-import { PRODUCTS, CATEGORIES } from '@/lib/data';
+import { getAllProducts, CATEGORIES } from '@/lib/data'; // Changed from PRODUCTS
 import type { Product, Category } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,7 +26,7 @@ export default function ShopPage() {
   useEffect(() => {
     // Simulate fetching products
     setTimeout(() => {
-      setAllProducts(PRODUCTS);
+      setAllProducts(getAllProducts()); // Use getAllProducts
       setIsLoading(false);
     }, 500); // Simulating network delay
   }, []);
