@@ -8,10 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound, AlertTriangle } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 // --- IMPORTANT: Basic illustrative login ---
 // --- NOT FOR PRODUCTION USE. LACKS SECURITY. ---
@@ -20,6 +22,9 @@ const HARDCODED_PASSWORD = "password";
 // --- End of illustrative login warning ---
 
 export default function AdminPage() {
+  const { currentUser, isLoading: authIsLoading } = useAuth(); // Get main app auth state
+  const router = useRouter();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -37,9 +42,9 @@ export default function AdminPage() {
   });
   const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
 
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ 
-    siteName: '', 
-    siteTagline: '', 
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
+    siteName: '',
+    siteTagline: '',
     contentManagementInfoText: '',
     homePageNoProductsTitle: '',
     homePageNoProductsDescription: '',
@@ -57,19 +62,26 @@ export default function AdminPage() {
 
   const { toast } = useToast();
 
-  // --- Basic illustrative login state ---
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // --- Admin's internal login state ---
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  // --- End of basic illustrative login state ---
+  // --- End of admin's internal login state ---
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!authIsLoading && !currentUser) {
+      router.push('/login'); // Redirect if not logged into main app
+    }
+  }, [currentUser, authIsLoading, router]);
+
+  useEffect(() => {
+    // Load admin data only if main user is authenticated AND admin is authenticated internally
+    if (currentUser && isAdminAuthenticated) {
       refreshProducts();
       refreshSiteSettings();
     }
-  }, [isAuthenticated]);
+  }, [currentUser, isAdminAuthenticated]);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
@@ -105,7 +117,7 @@ export default function AdminPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit' | 'settings' | 'content') => {
     const { name, value } = e.target;
-    
+
     if (formType === 'settings') {
         setCurrentSettingsForm(prev => ({ ...prev, [name]: value }));
     } else if (formType === 'content') {
@@ -187,7 +199,7 @@ export default function AdminPage() {
         siteTagline: currentSettingsForm.siteTagline,
       };
       updateSiteSettings(settingsToUpdate);
-      refreshSiteSettings(); 
+      refreshSiteSettings();
       toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
       setIsSettingsDialogOpen(false);
     } catch (error) {
@@ -213,7 +225,7 @@ export default function AdminPage() {
 
   const handleUpdatePageContent = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editableContentForm.contentManagementInfoText || 
+    if (!editableContentForm.contentManagementInfoText ||
         !editableContentForm.homePageNoProductsTitle ||
         !editableContentForm.homePageNoProductsDescription ||
         !editableContentForm.contactPageTitle ||
@@ -223,7 +235,7 @@ export default function AdminPage() {
        return;
     }
     try {
-      updateSiteSettings(editableContentForm); 
+      updateSiteSettings(editableContentForm);
       refreshSiteSettings();
       toast({ title: "Page Content Updated", description: "Relevant page content sections have been updated." });
       setIsContentDialogOpen(false);
@@ -233,55 +245,79 @@ export default function AdminPage() {
     }
   };
 
-  // --- Basic illustrative login functions ---
-  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
+  // --- Admin's internal illustrative login functions ---
+  const handleAdminLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoginError(null);
     if (loginUsername === HARDCODED_USERNAME && loginPassword === HARDCODED_PASSWORD) {
-      setIsAuthenticated(true);
+      setIsAdminAuthenticated(true);
       setLoginUsername("");
       setLoginPassword("");
-      toast({title: "Login Successful", description: "Welcome to the Admin Dashboard."});
+      toast({title: "Admin Login Successful", description: "Welcome to the Admin Dashboard."});
     } else {
-      setLoginError("Invalid username or password.");
-      toast({title: "Login Failed", description: "Invalid username or password.", variant: "destructive"});
+      setLoginError("Invalid admin username or password.");
+      toast({title: "Admin Login Failed", description: "Invalid admin username or password.", variant: "destructive"});
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    toast({title: "Logged Out", description: "You have been logged out of the Admin Dashboard."});
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    toast({title: "Admin Logged Out", description: "You have been logged out of the Admin Dashboard."});
   };
-  // --- End of basic illustrative login functions ---
+  // --- End of admin's internal illustrative login functions ---
 
-  if (!isAuthenticated) {
+  if (authIsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <p className="text-lg text-muted-foreground">Loading authentication status...</p>
+      </div>
+    );
+  }
+
+  // If main app user is not logged in (and auth is not loading), this will be caught by the useEffect redirect.
+  // This is a fallback display if redirect hasn't happened yet or for clearer state.
+  if (!currentUser) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <h1 className="text-3xl font-bold font-headline text-destructive mb-2">Access Denied</h1>
+        <p className="text-lg text-muted-foreground mb-6">You must be logged in to access the admin dashboard.</p>
+        <Button onClick={() => router.push('/login')} className="bg-primary hover:bg-accent hover:text-accent-foreground">
+          Go to Login
+        </Button>
+      </div>
+    );
+  }
+
+  // If main app user IS logged in, then show the admin's internal login or dashboard
+  if (!isAdminAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <KeyRound className="mx-auto h-12 w-12 text-primary mb-3" />
             <CardTitle className="text-3xl font-bold font-headline">Admin Login</CardTitle>
-            <CardDescription>Enter your credentials to access the dashboard.</CardDescription>
+            <CardDescription>Enter your admin credentials to access the dashboard.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleAdminLogin} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username" 
-                  type="text" 
+                <Label htmlFor="admin-username">Admin Username</Label>
+                <Input
+                  id="admin-username"
+                  type="text"
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="admin" 
-                  required 
+                  placeholder="admin"
+                  required
                   className="py-3 px-4 text-base"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
+                <Label htmlFor="admin-password">Admin Password</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="password"
@@ -291,7 +327,7 @@ export default function AdminPage() {
               </div>
               {loginError && <p className="text-sm text-destructive text-center">{loginError}</p>}
               <Button type="submit" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground text-lg py-3">
-                Login
+                Login to Admin
               </Button>
             </form>
           </CardContent>
@@ -300,6 +336,7 @@ export default function AdminPage() {
     );
   }
 
+  // If main app user is logged in AND admin is internally authenticated:
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -307,8 +344,8 @@ export default function AdminPage() {
           <Shield className="mr-3 h-10 w-10 text-accent" />
           Admin Dashboard
         </h1>
-        <Button variant="outline" onClick={handleLogout} className="text-destructive hover:border-destructive hover:text-destructive">
-          <LogOut className="mr-2 h-5 w-5" /> Logout
+        <Button variant="outline" onClick={handleAdminLogout} className="text-destructive hover:border-destructive hover:text-destructive">
+          <LogOut className="mr-2 h-5 w-5" /> Logout from Admin
         </Button>
       </div>
       <p className="text-lg text-muted-foreground">
@@ -441,7 +478,7 @@ export default function AdminPage() {
                   Configure General Settings
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md"> 
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Configure Site Settings</DialogTitle>
                   <DialogDescription>
@@ -496,94 +533,94 @@ export default function AdminPage() {
                 <form onSubmit={handleUpdatePageContent} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                     <div>
                         <Label htmlFor="contentManagementInfoText">Admin Dashboard Info Text</Label>
-                        <Textarea 
-                            id="contentManagementInfoText" 
-                            name="contentManagementInfoText" 
-                            value={editableContentForm.contentManagementInfoText || ''} 
+                        <Textarea
+                            id="contentManagementInfoText"
+                            name="contentManagementInfoText"
+                            value={editableContentForm.contentManagementInfoText || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1" 
+                            className="min-h-[80px] mt-1"
                             placeholder="Enter informational text for the Admin Dashboard..."
-                            required 
+                            required
                         />
                     </div>
                     <div>
                         <Label htmlFor="homePageNoProductsTitle">Home Page: "No Products" Title</Label>
-                        <Input 
-                            id="homePageNoProductsTitle" 
-                            name="homePageNoProductsTitle" 
-                            value={editableContentForm.homePageNoProductsTitle || ''} 
+                        <Input
+                            id="homePageNoProductsTitle"
+                            name="homePageNoProductsTitle"
+                            value={editableContentForm.homePageNoProductsTitle || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1" 
+                            className="mt-1"
                             placeholder="Title for no products alert..."
-                            required 
+                            required
                         />
                     </div>
                      <div>
                         <Label htmlFor="homePageNoProductsDescription">Home Page: "No Products" Description</Label>
-                        <Textarea 
-                            id="homePageNoProductsDescription" 
-                            name="homePageNoProductsDescription" 
-                            value={editableContentForm.homePageNoProductsDescription || ''} 
+                        <Textarea
+                            id="homePageNoProductsDescription"
+                            name="homePageNoProductsDescription"
+                            value={editableContentForm.homePageNoProductsDescription || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1" 
+                            className="min-h-[80px] mt-1"
                             placeholder="Description for no products alert..."
-                            required 
+                            required
                         />
                     </div>
                      <div>
                         <Label htmlFor="contactPageTitle">Contact Page: Title</Label>
-                        <Input 
-                            id="contactPageTitle" 
-                            name="contactPageTitle" 
-                            value={editableContentForm.contactPageTitle || ''} 
+                        <Input
+                            id="contactPageTitle"
+                            name="contactPageTitle"
+                            value={editableContentForm.contactPageTitle || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1" 
+                            className="mt-1"
                             placeholder="Main title for Contact Us page..."
-                            required 
+                            required
                         />
                     </div>
                      <div>
                         <Label htmlFor="contactPageDescription">Contact Page: Description</Label>
-                        <Textarea 
-                            id="contactPageDescription" 
-                            name="contactPageDescription" 
-                            value={editableContentForm.contactPageDescription || ''} 
+                        <Textarea
+                            id="contactPageDescription"
+                            name="contactPageDescription"
+                            value={editableContentForm.contactPageDescription || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1" 
+                            className="min-h-[80px] mt-1"
                             placeholder="Introductory description for Contact Us page..."
-                            required 
+                            required
                         />
                     </div>
                     <div>
                         <Label htmlFor="contactPagePhoneNumber">Contact Page: Phone Number</Label>
-                        <Input 
-                            id="contactPagePhoneNumber" 
-                            name="contactPagePhoneNumber" 
-                            value={editableContentForm.contactPagePhoneNumber || ''} 
+                        <Input
+                            id="contactPagePhoneNumber"
+                            name="contactPagePhoneNumber"
+                            value={editableContentForm.contactPagePhoneNumber || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1" 
+                            className="mt-1"
                             placeholder="e.g., +1-555-123-4567"
                         />
                     </div>
                     <div>
                         <Label htmlFor="contactPageAddress">Contact Page: Address</Label>
-                        <Textarea 
-                            id="contactPageAddress" 
-                            name="contactPageAddress" 
-                            value={editableContentForm.contactPageAddress || ''} 
+                        <Textarea
+                            id="contactPageAddress"
+                            name="contactPageAddress"
+                            value={editableContentForm.contactPageAddress || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[60px] mt-1" 
+                            className="min-h-[60px] mt-1"
                             placeholder="e.g., 123 Main St, Anytown, USA"
                         />
                     </div>
                     <div>
                         <Label htmlFor="contactPageAdditionalInfo">Contact Page: Additional Info</Label>
-                        <Textarea 
-                            id="contactPageAdditionalInfo" 
-                            name="contactPageAdditionalInfo" 
-                            value={editableContentForm.contactPageAdditionalInfo || ''} 
+                        <Textarea
+                            id="contactPageAdditionalInfo"
+                            name="contactPageAdditionalInfo"
+                            value={editableContentForm.contactPageAdditionalInfo || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1" 
+                            className="min-h-[80px] mt-1"
                             placeholder="e.g., Office hours, specific directions..."
                         />
                     </div>
@@ -604,7 +641,7 @@ export default function AdminPage() {
 
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
-        Admin login is illustrative and uses hardcoded credentials ('admin'/'password').
+        Admin login is illustrative and uses hardcoded credentials ('admin'/'password'). Access to this page requires main application login.
       </p>
     </div>
   );
