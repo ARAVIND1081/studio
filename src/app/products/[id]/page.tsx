@@ -1,44 +1,50 @@
 
 'use client';
 
-import { use, useEffect, useState } from 'react'; // Import 'use'
+import { use, useEffect, useState, type FormEvent } from 'react';
 import Image from 'next/image';
-import { getProductById } from '@/lib/data';
-import type { Product } from '@/types';
+import { getProductById, addProductReview, type ReviewCreateInput } from '@/lib/data';
+import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
 import Link from 'next/link';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
-  // Conditionally unwrap paramsProp if it's a promise
   const params = (typeof paramsProp.then === 'function')
     ? use(paramsProp as Promise<{id: string}>)
     : paramsProp as {id: string};
-  const { id } = params; // id is now from the resolved params object
+  const { id } = params;
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingHistory, setViewingHistory] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  const [newReviewAuthor, setNewReviewAuthor] = useState('');
+  const [newReviewRating, setNewReviewRating] = useState<number>(0);
+  const [newReviewComment, setNewReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+
   const { addToCart } = useCart();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Reset loading state when id changes
     setIsLoading(true);
-    setProduct(null); // Clear previous product
+    setProduct(null); 
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
       setProduct(fetchedProduct);
-      // Update viewing history using the resolved id
       setViewingHistory(prev => {
         const newHistory = [id, ...prev.filter(viewedId => viewedId !== id)].slice(0, 5);
         if (typeof window !== 'undefined') {
@@ -48,7 +54,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
       });
     }
     setIsLoading(false);
-  }, [id]); // Depend on the resolved id
+  }, [id]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -82,6 +88,43 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   };
   
   const displayImages = product?.images && product.images.length > 0 ? product.images : (product ? [product.imageUrl] : []);
+
+  const handleReviewSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!product) return;
+    if (newReviewRating === 0) {
+      toast({ title: "Rating Required", description: "Please select a star rating for your review.", variant: "destructive" });
+      return;
+    }
+    if (!newReviewComment.trim()) {
+      toast({ title: "Comment Required", description: "Please write a comment for your review.", variant: "destructive" });
+      return;
+    }
+    if (!newReviewAuthor.trim()) {
+      toast({ title: "Name Required", description: "Please enter your name.", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    const reviewInput: ReviewCreateInput = {
+      author: newReviewAuthor,
+      rating: newReviewRating,
+      comment: newReviewComment,
+    };
+
+    const updatedProduct = addProductReview(product.id, reviewInput);
+
+    if (updatedProduct) {
+      setProduct(updatedProduct); // Update local product state with new review and rating
+      toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
+      setNewReviewAuthor('');
+      setNewReviewRating(0);
+      setNewReviewComment('');
+    } else {
+      toast({ title: "Error", description: "Could not submit review. Product not found.", variant: "destructive" });
+    }
+    setIsSubmittingReview(false);
+  };
 
 
   if (isLoading) {
@@ -170,7 +213,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
       <Separator />
 
       {/* Accordion for Specifications and Reviews */}
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="w-full" defaultValue="reviews">
         {product.specifications && product.specifications.length > 0 && (
           <AccordionItem value="specifications">
             <AccordionTrigger className="text-2xl font-headline text-primary hover:text-accent">Specifications</AccordionTrigger>
@@ -184,10 +227,10 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
           </AccordionItem>
         )}
 
-        {product.reviews && product.reviews.length > 0 && (
-          <AccordionItem value="reviews">
-            <AccordionTrigger className="text-2xl font-headline text-primary hover:text-accent">Customer Reviews</AccordionTrigger>
-            <AccordionContent>
+        <AccordionItem value="reviews">
+          <AccordionTrigger className="text-2xl font-headline text-primary hover:text-accent">Customer Reviews ({product.reviews?.length || 0})</AccordionTrigger>
+          <AccordionContent>
+            {product.reviews && product.reviews.length > 0 ? (
               <div className="space-y-6">
                 {product.reviews.map(review => (
                   <Card key={review.id} className="bg-secondary/50">
@@ -206,10 +249,75 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
                   </Card>
                 ))}
               </div>
-            </AccordionContent>
-          </AccordionItem>
-        )}
+            ) : (
+              <p className="text-muted-foreground">No reviews yet. Be the first to review!</p>
+            )}
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
+
+      <Separator />
+
+      {/* Add Review Form */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center">
+            <MessageSquare className="mr-2 h-6 w-6 text-accent" /> Leave a Review
+          </CardTitle>
+          <CardDescription>Share your thoughts about {product.name}.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleReviewSubmit} className="space-y-6">
+            <div>
+              <Label htmlFor="reviewAuthor" className="flex items-center mb-1">
+                <User className="mr-2 h-4 w-4 text-accent" /> Your Name
+              </Label>
+              <Input
+                id="reviewAuthor"
+                value={newReviewAuthor}
+                onChange={(e) => setNewReviewAuthor(e.target.value)}
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block">Your Rating</Label>
+              <div className="flex items-center space-x-1">
+                {[1, 2, 3, 4, 5].map((starValue) => (
+                  <Button
+                    key={starValue}
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setNewReviewRating(starValue)}
+                    className={`h-8 w-8 p-0 ${newReviewRating >= starValue ? 'text-accent' : 'text-muted-foreground hover:text-accent/80'}`}
+                    aria-label={`Rate ${starValue} out of 5 stars`}
+                  >
+                    <Star className={`h-6 w-6 ${newReviewRating >= starValue ? 'fill-accent' : 'fill-transparent'}`} />
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="reviewComment" className="flex items-center mb-1">
+                <MessageSquare className="mr-2 h-4 w-4 text-accent" /> Your Comment
+              </Label>
+              <Textarea
+                id="reviewComment"
+                value={newReviewComment}
+                onChange={(e) => setNewReviewComment(e.target.value)}
+                placeholder={`What did you like or dislike about ${product.name}?`}
+                rows={4}
+                required
+                className="min-h-[100px]"
+              />
+            </div>
+            <Button type="submit" disabled={isSubmittingReview} className="bg-primary hover:bg-accent hover:text-accent-foreground">
+              {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
       
       <Separator />
 

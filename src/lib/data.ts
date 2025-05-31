@@ -168,6 +168,41 @@ export const deleteProduct = (id: string): boolean => {
   return productsData.length < initialLength;
 };
 
+// --- Product Reviews ---
+export interface ReviewCreateInput {
+  author: string;
+  rating: number;
+  comment: string;
+}
+
+export const addProductReview = (productId: string, reviewInput: ReviewCreateInput): Product | undefined => {
+  const productIndex = productsData.findIndex(p => p.id === productId);
+  if (productIndex === -1) {
+    return undefined;
+  }
+
+  const product = productsData[productIndex];
+  const newReview: Review = {
+    id: `review${product.reviews ? product.reviews.length + 1 : 1}_${productId}_${Date.now()}`,
+    author: reviewInput.author,
+    rating: reviewInput.rating,
+    comment: reviewInput.comment,
+    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+  };
+
+  if (!product.reviews) {
+    product.reviews = [];
+  }
+  product.reviews.push(newReview);
+  
+  const totalRating = product.reviews.reduce((sum, r) => sum + r.rating, 0);
+  product.rating = product.reviews.length > 0 ? parseFloat((totalRating / product.reviews.length).toFixed(1)) : 0;
+
+  productsData[productIndex] = product; // Update the product in the main array
+  return { ...product }; // Return a copy of the updated product
+};
+
+
 // --- Site Settings ---
 let siteSettingsData: SiteSettings = {
   siteName: "ShopSphere",
@@ -223,3 +258,4 @@ export const verifyUserCredentials = (email: string, pass: string): User | null 
     }
     return null;
 }
+
