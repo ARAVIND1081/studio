@@ -47,6 +47,7 @@ const checkoutFormSchema = z.object({
     expiryDate: z.string(),
     cvv: z.string(),
   }).optional(),
+  upiProvider: z.enum(['gpay', 'phonepe', 'paytm', 'other_upi'], { errorMap: () => ({ message: "Please select a UPI option." }) }).optional(),
   upiId: z.string().optional(),
   selectedBank: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -65,8 +66,12 @@ const checkoutFormSchema = z.object({
     }
   }
   if (data.paymentMethod === 'upi') {
-    if (!data.upiId || !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(data.upiId) ) { // Basic UPI ID format check
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid UPI ID is required (e.g., yourname@bank)", path: ["upiId"] });
+    if (!data.upiProvider) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select a UPI provider.", path: ["upiProvider"] });
+    } else if (data.upiProvider === 'other_upi') {
+        if (!data.upiId || !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(data.upiId) ) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid UPI ID is required (e.g., yourname@bank)", path: ["upiId"] });
+        }
     }
   }
   if (data.paymentMethod === 'netbanking') {
@@ -92,6 +97,13 @@ const paymentMethods = [
     { id: 'netbanking', label: 'Net Banking', icon: Landmark },
 ];
 
+const upiProviders = [
+    { id: 'gpay', label: 'Google Pay', icon: Smartphone },
+    { id: 'phonepe', label: 'PhonePe', icon: Smartphone },
+    { id: 'paytm', label: 'Paytm', icon: Smartphone },
+    { id: 'other_upi', label: 'Other UPI ID / Wallet', icon: Smartphone },
+];
+
 const mockBanks = [
   "State Bank of India",
   "HDFC Bank",
@@ -109,7 +121,7 @@ const mockBanks = [
 export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { cartItems, getCartTotal, clearCart, getItemCount } = useCart();
+  const { cartItems, getCartTotal, clearCart } = useCart(); // getItemCount removed as it's calculated directly
   const [selectedShippingPrice, setSelectedShippingPrice] = useState(shippingOptions[0].price);
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -138,6 +150,7 @@ export default function CheckoutPage() {
         expiryDate: "",
         cvv: "",
       },
+      upiProvider: undefined,
       upiId: "",
       selectedBank: "",
     },
@@ -148,6 +161,7 @@ export default function CheckoutPage() {
   const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
 
   const watchedPaymentMethod = form.watch("paymentMethod");
+  const watchedUpiProvider = form.watch("upiProvider");
 
   useEffect(() => {
     if (hasMounted && cartItems.length === 0) {
@@ -162,20 +176,24 @@ export default function CheckoutPage() {
     let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
     if (data.paymentMethod === 'card' && data.cardDetails) {
         paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
-    } else if (data.paymentMethod === 'upi' && data.upiId) {
-        paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+    } else if (data.paymentMethod === 'upi') {
+        const providerLabel = upiProviders.find(up => up.id === data.upiProvider)?.label || data.upiProvider;
+        paymentDetailsDescription += ` Provider: ${providerLabel}.`;
+        if (data.upiProvider === 'other_upi' && data.upiId) {
+            paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+        }
     } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
         paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
     }
-
 
     toast({
       title: "Order Placed Successfully!",
       description: `Thank you for your purchase. ${paymentDetailsDescription} Your order is being processed.`,
     });
+    
+    const itemCountBeforeClear = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     clearCart();
-    const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0); // Recalculate here before clearCart
-    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCount}`);
+    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCountBeforeClear}`);
   };
 
   if (!hasMounted) {
@@ -323,11 +341,11 @@ export default function CheckoutPage() {
                     <RadioGroup
                       onValueChange={(value) => {
                         field.onChange(value);
-                        // Reset other payment details when method changes
                         form.setValue('cardDetails', { cardNumber: "", cardHolderName: "", expiryDate: "", cvv: "" });
+                        form.setValue('upiProvider', undefined);
                         form.setValue('upiId', "");
                         form.setValue('selectedBank', "");
-                        form.clearErrors(['cardDetails.cardHolderName', 'cardDetails.cardNumber', 'cardDetails.expiryDate', 'cardDetails.cvv', 'upiId', 'selectedBank']);
+                        form.clearErrors(['cardDetails.cardHolderName', 'cardDetails.cardNumber', 'cardDetails.expiryDate', 'cardDetails.cvv', 'upiProvider', 'upiId', 'selectedBank']);
                       }}
                       value={field.value}
                       className="space-y-3"
@@ -388,14 +406,50 @@ export default function CheckoutPage() {
                 {/* Conditional Fields for UPI Payment */}
                 {watchedPaymentMethod === 'upi' && (
                   <div className="space-y-4 pt-4 border-t mt-4">
-                     <h3 className="text-lg font-medium text-foreground">Enter UPI ID</h3>
-                    <FormField control={form.control} name="upiId" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center"><Smartphone className="mr-2 h-4 w-4 text-muted-foreground" /> UPI ID</FormLabel>
-                        <FormControl><Input placeholder="yourname@bank" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                     <h3 className="text-lg font-medium text-foreground mb-3">Choose UPI Option</h3>
+                     <Controller
+                        control={form.control}
+                        name="upiProvider"
+                        render={({ field }) => (
+                            <RadioGroup
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                form.setValue('upiId', ""); // Reset UPI ID when provider changes
+                                form.clearErrors('upiId');
+                            }}
+                            value={field.value}
+                            className="space-y-3"
+                            >
+                            {upiProviders.map((provider) => (
+                                <FormItem key={provider.id} className="flex items-center space-x-3 p-3 border rounded-md hover:border-accent transition-colors">
+                                <FormControl>
+                                    <RadioGroupItem value={provider.id} />
+                                </FormControl>
+                                <FormLabel className="font-normal flex-grow cursor-pointer flex items-center">
+                                    <provider.icon className="mr-3 h-5 w-5 text-muted-foreground" />
+                                    {provider.label}
+                                </FormLabel>
+                                </FormItem>
+                            ))}
+                            </RadioGroup>
+                        )}
+                     />
+                    <FormMessage>{form.formState.errors.upiProvider?.message}</FormMessage>
+
+                    {watchedUpiProvider === 'other_upi' && (
+                        <FormField control={form.control} name="upiId" render={({ field }) => (
+                        <FormItem className="mt-4">
+                            <FormLabel className="flex items-center"><Smartphone className="mr-2 h-4 w-4 text-muted-foreground" /> UPI ID</FormLabel>
+                            <FormControl><Input placeholder="yourname@bank" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )} />
+                    )}
+                    {watchedUpiProvider && watchedUpiProvider !== 'other_upi' && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                            You will be prompted to complete payment in {upiProviders.find(p => p.id === watchedUpiProvider)?.label}. (This is a mock-up)
+                        </p>
+                    )}
                   </div>
                 )}
 
