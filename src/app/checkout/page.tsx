@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
-import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark } from "lucide-react";
+import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -31,8 +31,8 @@ const shippingAddressSchema = z.object({
   addressLine2: z.string().optional(),
   city: z.string().min(2, "City is required"),
   state: z.string().min(2, "State/Province is required"),
-  zipCode: z.string().min(5, "ZIP/Postal code is required"),
-  country: z.string().min(2, "Country is required").default("India"), // Default to India
+  zipCode: z.string().min(5, "PIN code is required"),
+  country: z.string().min(2, "Country is required").default("India"),
   phoneNumber: z.string().min(10, "Valid phone number is required").regex(/^\+?[0-9\s-()]+$/, "Invalid phone number format"),
 });
 
@@ -40,14 +40,42 @@ const checkoutFormSchema = z.object({
   shippingAddress: shippingAddressSchema,
   shippingMethod: z.string().min(1, "Please select a shipping method"),
   paymentMethod: z.string().min(1, "Please select a payment method"),
+  cardDetails: z.object({
+    cardNumber: z.string(),
+    cardHolderName: z.string(),
+    expiryDate: z.string(),
+    cvv: z.string(),
+  }).optional(),
+  upiId: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.paymentMethod === 'card') {
+    if (!data.cardDetails?.cardHolderName || data.cardDetails.cardHolderName.length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Cardholder name is required", path: ["cardDetails", "cardHolderName"] });
+    }
+    if (!data.cardDetails?.cardNumber || !/^\d{13,19}$/.test(data.cardDetails.cardNumber.replace(/\s/g, ''))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid card number is required", path: ["cardDetails", "cardNumber"] });
+    }
+    if (!data.cardDetails?.expiryDate || !/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(data.cardDetails.expiryDate)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expiry date (MM/YY) is required", path: ["cardDetails", "expiryDate"] });
+    }
+    if (!data.cardDetails?.cvv || !/^\d{3,4}$/.test(data.cardDetails.cvv)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid CVV (3 or 4 digits) is required", path: ["cardDetails", "cvv"] });
+    }
+  }
+  if (data.paymentMethod === 'upi') {
+    if (!data.upiId || !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(data.upiId) ) { // Basic UPI ID format check
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid UPI ID is required (e.g., yourname@bank)", path: ["upiId"] });
+    }
+  }
 });
+
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
 const shippingOptions = [
   { id: 'standard', label: 'Standard Shipping (5-7 business days)', price: 0, description: 'Reliable and free' },
-  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 150.00, description: 'Faster delivery' }, // Adjusted price
-  { id: 'priority', label: 'Priority Shipping (1 business day)', price: 300.00, description: 'Get it tomorrow' }, // Adjusted price
+  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 150.00, description: 'Faster delivery' },
+  { id: 'priority', label: 'Priority Shipping (1 business day)', price: 300.00, description: 'Get it tomorrow' },
 ];
 
 const paymentMethods = [
@@ -78,18 +106,26 @@ export default function CheckoutPage() {
         city: "",
         state: "",
         zipCode: "",
-        country: "India", // Default to India
+        country: "India",
         phoneNumber: "",
       },
       shippingMethod: shippingOptions[0].id,
-      paymentMethod: "", 
+      paymentMethod: "",
+      cardDetails: {
+        cardNumber: "",
+        cardHolderName: "",
+        expiryDate: "",
+        cvv: "",
+      },
+      upiId: "",
     },
   });
 
   const itemsSubtotal = getCartTotal();
-  const mockTaxes = itemsSubtotal * 0.18; // Assuming 18% GST for example
+  const mockTaxes = itemsSubtotal * 0.18; 
   const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
 
+  const watchedPaymentMethod = form.watch("paymentMethod");
 
   useEffect(() => {
     if (hasMounted && cartItems.length === 0) {
@@ -100,9 +136,17 @@ export default function CheckoutPage() {
 
   const onSubmit = (data: CheckoutFormValues) => {
     console.log("Checkout data:", data);
+    // Log specific payment details based on method
+    let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
+    if (data.paymentMethod === 'card' && data.cardDetails) {
+        paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
+    } else if (data.paymentMethod === 'upi' && data.upiId) {
+        paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+    }
+
     toast({
       title: "Order Placed Successfully!",
-      description: `Thank you for your purchase. Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}. Your order is being processed.`,
+      description: `Thank you for your purchase. ${paymentDetailsDescription} Your order is being processed.`,
     });
     clearCart();
     router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${getItemCount()}`);
@@ -116,7 +160,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (cartItems.length === 0 && hasMounted) { // ensure hasMounted before redirecting
+  if (cartItems.length === 0 && hasMounted) { 
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Redirecting to cart...</p>
@@ -245,7 +289,7 @@ export default function CheckoutPage() {
               <CardHeader>
                 <CardTitle className="text-2xl font-headline text-primary flex items-center"><CreditCard className="mr-2 h-6 w-6 text-accent" /> Select Payment Method</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Controller
                   control={form.control}
                   name="paymentMethod"
@@ -270,6 +314,72 @@ export default function CheckoutPage() {
                   )}
                 />
                 <FormMessage>{form.formState.errors.paymentMethod?.message}</FormMessage>
+
+                {/* Conditional Fields for Card Payment */}
+                {watchedPaymentMethod === 'card' && (
+                  <div className="space-y-4 pt-4 border-t mt-4">
+                    <h3 className="text-lg font-medium text-foreground">Enter Card Details</h3>
+                    <FormField control={form.control} name="cardDetails.cardHolderName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><User className="mr-2 h-4 w-4 text-muted-foreground" /> Cardholder Name</FormLabel>
+                        <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="cardDetails.cardNumber" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><CreditCard className="mr-2 h-4 w-4 text-muted-foreground" /> Card Number</FormLabel>
+                        <FormControl><Input placeholder="•••• •••• •••• ••••" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="cardDetails.expiryDate" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center"><Calendar className="mr-2 h-4 w-4 text-muted-foreground" /> Expiry Date</FormLabel>
+                          <FormControl><Input placeholder="MM/YY" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="cardDetails.cvv" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center"><Lock className="mr-2 h-4 w-4 text-muted-foreground" /> CVV</FormLabel>
+                          <FormControl><Input placeholder="•••" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Conditional Fields for UPI Payment */}
+                {watchedPaymentMethod === 'upi' && (
+                  <div className="space-y-4 pt-4 border-t mt-4">
+                     <h3 className="text-lg font-medium text-foreground">Enter UPI ID</h3>
+                    <FormField control={form.control} name="upiId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Smartphone className="mr-2 h-4 w-4 text-muted-foreground" /> UPI ID</FormLabel>
+                        <FormControl><Input placeholder="yourname@bank" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                )}
+
+                {/* Info for Cash on Delivery */}
+                {watchedPaymentMethod === 'cod' && (
+                  <div className="pt-4 border-t mt-4">
+                    <p className="text-sm text-muted-foreground">You will pay with cash upon delivery of your order.</p>
+                  </div>
+                )}
+
+                 {/* Info for Net Banking */}
+                 {watchedPaymentMethod === 'netbanking' && (
+                  <div className="pt-4 border-t mt-4">
+                    <p className="text-sm text-muted-foreground">You will be redirected to your bank's portal to complete the payment securely. (This is a mock-up)</p>
+                  </div>
+                )}
+
               </CardContent>
             </Card>
           </div>
@@ -328,3 +438,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    
