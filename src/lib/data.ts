@@ -139,13 +139,16 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newIdNumber = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
   const newId = newIdNumber.toString();
 
+  const defaultImageUrl = 'https://placehold.co/600x400.png';
+
   const newProduct: Product = {
     ...productInput,
     id: newId,
+    imageUrl: productInput.images && productInput.images.length > 0 ? productInput.images[0] : (productInput.imageUrl || defaultImageUrl),
+    images: productInput.images && productInput.images.length > 0 ? productInput.images : (productInput.imageUrl ? [productInput.imageUrl] : [defaultImageUrl]),
     rating: productInput.rating ?? 0,
-    reviews: productInput.reviews ?? [],
     specifications: productInput.specifications ?? [],
-    images: productInput.images ?? (productInput.imageUrl ? [productInput.imageUrl] : []),
+    reviews: productInput.reviews ?? [],
   };
   productsData.push(newProduct);
   return { ...newProduct }; 
@@ -157,7 +160,20 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
   if (productIndex === -1) {
     return undefined;
   }
-  productsData[productIndex] = { ...productsData[productIndex], ...updates };
+  
+  const existingProduct = productsData[productIndex];
+  let updatedProductData = { ...existingProduct, ...updates };
+
+  // If images are being updated, ensure imageUrl is also updated to the first image
+  if (updates.images && updates.images.length > 0) {
+    updatedProductData.imageUrl = updates.images[0];
+  } else if (updates.images && updates.images.length === 0) { 
+    // If images array is cleared, fall back to a default or potentially clear imageUrl too
+    updatedProductData.imageUrl = 'https://placehold.co/600x400.png'; 
+  }
+
+
+  productsData[productIndex] = updatedProductData;
   return { ...productsData[productIndex] }; 
 };
 
@@ -229,7 +245,7 @@ export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSett
 // --- User Management (In-memory, for UI Prototyping Only - NOT SECURE) ---
 let usersData: User[] = [
     { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' },
-    { id: 'adminuser', email: 'admin@shopsphere.com', password: 'adminpass', name: 'Shop Admin' } // Added admin user
+    { id: 'adminuser', email: 'admin@shopsphere.com', password: 'adminpass', name: 'Shop Admin' }
 ];
 
 export const getUserByEmail = (email: string): User | undefined => {
@@ -244,18 +260,16 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
     return { error: 'Account already exists with this email.' };
   }
   const newId = `user${usersData.length + 1}_${Date.now()}`;
-  // IMPORTANT: In a real app, passwords MUST be hashed securely.
-  // Storing plain text passwords is a major security vulnerability.
   const newUser: User = { ...userInput, id: newId };
   usersData.push(newUser);
   return { ...newUser }; // Return a copy
 };
 
-// Function to simulate login (VERY INSECURE - for UI demo only)
 export const verifyUserCredentials = (email: string, pass: string): User | null => {
-    const user = usersData.find(u => u.email === email); // Find directly without using getUserByEmail to avoid premature copying
-    if (user && user.password === pass) { // Plain text password check - BAD!
-        return {...user}; // Return a copy
+    const user = usersData.find(u => u.email === email); 
+    if (user && user.password === pass) { 
+        return {...user}; 
     }
     return null;
 }
+

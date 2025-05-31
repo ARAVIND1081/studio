@@ -7,17 +7,33 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX } from 'lucide-react';
+import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
 
-// --- IMPORTANT: Admin User Identification ---
-const SUPER_ADMIN_EMAIL = "admin@shopsphere.com"; // Main application user who is allowed to access the admin dashboard
-// --- End of Admin User Identification ---
+const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
+
+interface AdminProductFormInput {
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  imageUrlsString: string; // For multi-line textarea input
+  // other fields from ProductCreateInput if necessary, excluding id, imageUrl, images
+}
+
+const initialNewProductFormState: AdminProductFormInput = {
+  name: "",
+  description: "",
+  price: 0,
+  category: "",
+  imageUrlsString: "",
+};
+
 
 export default function AdminPage() {
   const { currentUser, isLoading: authIsLoading, logout: mainAppLogout } = useAuth();
@@ -27,18 +43,10 @@ export default function AdminPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState<ProductCreateInput>({
-    name: "",
-    description: "",
-    price: 0,
-    category: "",
-    imageUrl: "",
-    images: [],
-    rating: 0,
-    specifications: [],
-    reviews: [],
-  });
-  const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
+  
+  const [newProductForm, setNewProductForm] = useState<AdminProductFormInput>(initialNewProductFormState);
+  const [currentProductForm, setCurrentProductForm] = useState<Partial<AdminProductFormInput & { id?: string }>>({});
+
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({
     siteName: '',
@@ -63,7 +71,6 @@ export default function AdminPage() {
   const isAuthorizedAdminUser = !authIsLoading && currentUser?.email === SUPER_ADMIN_EMAIL;
 
   useEffect(() => {
-    // Load admin data only if main user is the designated admin
     if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshSiteSettings();
@@ -77,7 +84,6 @@ export default function AdminPage() {
   const refreshSiteSettings = () => {
     const currentSettings = getSiteSettings();
     setSiteSettings(currentSettings);
-    // Initialize forms with current settings data
     setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
     setEditableContentForm({
       contentManagementInfoText: currentSettings.contentManagementInfoText,
@@ -113,7 +119,7 @@ export default function AdminPage() {
     } else {
         const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
         if (formType === 'add') {
-          setNewProduct(prev => ({ ...prev, [name]: parsedValue, }));
+          setNewProductForm(prev => ({ ...prev, [name]: parsedValue, }));
         } else {
           setCurrentProductForm(prev => ({ ...prev, [name]: parsedValue, }));
         }
@@ -122,16 +128,31 @@ export default function AdminPage() {
 
   const handleAddNewProduct = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newProduct.name || !newProduct.category || newProduct.price <=0 || !newProduct.imageUrl) {
-        toast({ title: "Missing Fields", description: "Please fill in all required product details.", variant: "destructive"});
+    const urls = newProductForm.imageUrlsString.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+
+    if (!newProductForm.name || !newProductForm.category || newProductForm.price <=0 || urls.length === 0) {
+        toast({ title: "Missing Fields", description: "Name, category, price, and at least one image URL are required.", variant: "destructive"});
         return;
     }
+
+    const productToAdd: DataProductCreateInput = {
+        name: newProductForm.name,
+        description: newProductForm.description,
+        price: newProductForm.price,
+        category: newProductForm.category,
+        imageUrl: urls[0],
+        images: urls,
+        rating: 0, // Default rating
+        specifications: [], // Default empty
+        reviews: [], // Default empty
+    };
+
     try {
-      addProduct(newProduct);
+      addProduct(productToAdd);
       refreshProducts();
-      toast({ title: "Product Added", description: `${newProduct.name} has been successfully added.` });
+      toast({ title: "Product Added", description: `${newProductForm.name} has been successfully added.` });
       setIsAddDialogOpen(false);
-      setNewProduct({ name: "", description: "", price: 0, category: "", imageUrl: "", images: [], rating: 0, specifications: [], reviews: [] });
+      setNewProductForm(initialNewProductFormState);
     } catch (error) {
       toast({ title: "Error", description: "Failed to add product.", variant: "destructive" });
       console.error("Error adding product:", error);
@@ -140,24 +161,45 @@ export default function AdminPage() {
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
+    const imageUrlsString = product.images && product.images.length > 0 
+        ? product.images.join('\n') 
+        : (product.imageUrl || '');
     setCurrentProductForm({
+      id: product.id,
       name: product.name,
       description: product.description,
       price: product.price,
       category: product.category,
-      imageUrl: product.imageUrl,
+      imageUrlsString: imageUrlsString,
     });
     setIsEditDialogOpen(true);
   };
 
   const handleUpdateProduct = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imageUrl) {
-      toast({ title: "Missing Fields", description: "Please fill in all required product details for editing.", variant: "destructive" });
+    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imageUrlsString) {
+      toast({ title: "Missing Fields", description: "Name, category, price, and at least one image URL are required.", variant: "destructive" });
       return;
     }
+
+    const urls = currentProductForm.imageUrlsString.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+    if (urls.length === 0) {
+        toast({ title: "Missing Image URL", description: "At least one image URL is required.", variant: "destructive" });
+        return;
+    }
+
+    const productToUpdate: Partial<Omit<Product, 'id'>> = {
+      name: currentProductForm.name,
+      description: currentProductForm.description,
+      price: currentProductForm.price,
+      category: currentProductForm.category,
+      imageUrl: urls[0],
+      images: urls,
+      // Retain existing rating, specs, reviews unless specifically edited
+    };
+
     try {
-      updateProduct(editingProduct.id, currentProductForm as Partial<Omit<Product, 'id'>>);
+      updateProduct(editingProduct.id, productToUpdate);
       refreshProducts();
       toast({ title: "Product Updated", description: `${currentProductForm.name} has been successfully updated.` });
       setIsEditDialogOpen(false);
@@ -267,7 +309,6 @@ export default function AdminPage() {
     );
   }
 
-  // If main app user IS the designated admin:
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -300,33 +341,43 @@ export default function AdminPage() {
                   <PlusCircle className="mr-2 h-5 w-5" /> Add New Product
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Add New Product</DialogTitle>
                   <DialogDescription>
                     Fill in the details for the new product. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleAddNewProduct} className="grid gap-4 py-4">
+                <form onSubmit={handleAddNewProduct} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="add-name" className="text-right">Name</Label>
-                    <Input id="add-name" name="name" value={newProduct.name} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
+                    <Input id="add-name" name="name" value={newProductForm.name} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="add-description" className="text-right">Description</Label>
-                    <Textarea id="add-description" name="description" value={newProduct.description} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" />
+                    <Textarea id="add-description" name="description" value={newProductForm.description} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="add-price" className="text-right">Price</Label>
-                    <Input id="add-price" name="price" type="number" value={newProduct.price} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required min="0.01" step="0.01" />
+                    <Input id="add-price" name="price" type="number" value={newProductForm.price} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required min="0.01" step="0.01" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="add-category" className="text-right">Category</Label>
-                    <Input id="add-category" name="category" value={newProduct.category} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
+                    <Input id="add-category" name="category" value={newProductForm.category} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="add-imageUrl" className="text-right">Image URL</Label>
-                    <Input id="add-imageUrl" name="imageUrl" value={newProduct.imageUrl} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" placeholder="https://placehold.co/600x400.png" required />
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="add-imageUrlsString" className="text-right pt-2 flex items-center">
+                      <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> URLs
+                    </Label>
+                    <Textarea 
+                        id="add-imageUrlsString" 
+                        name="imageUrlsString" 
+                        value={newProductForm.imageUrlsString} 
+                        onChange={(e) => handleInputChange(e, 'add')} 
+                        className="col-span-3 min-h-[100px]" 
+                        placeholder="Enter image URLs, one per line. First URL is primary." 
+                        required 
+                    />
                   </div>
                   <DialogFooter>
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Product</Button>
@@ -336,14 +387,14 @@ export default function AdminPage() {
             </Dialog>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Edit Product</DialogTitle>
                   <DialogDescription>
                     Update the details for the product. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdateProduct} className="grid gap-4 py-4">
+                <form onSubmit={handleUpdateProduct} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="edit-name" className="text-right">Name</Label>
                     <Input id="edit-name" name="name" value={currentProductForm.name || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
@@ -360,9 +411,19 @@ export default function AdminPage() {
                     <Label htmlFor="edit-category" className="text-right">Category</Label>
                     <Input id="edit-category" name="category" value={currentProductForm.category || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-imageUrl" className="text-right">Image URL</Label>
-                    <Input id="edit-imageUrl" name="imageUrl" value={currentProductForm.imageUrl || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" placeholder="https://placehold.co/600x400.png" required />
+                  <div className="grid grid-cols-4 items-start gap-4">
+                     <Label htmlFor="edit-imageUrlsString" className="text-right pt-2 flex items-center">
+                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> URLs
+                     </Label>
+                    <Textarea 
+                        id="edit-imageUrlsString" 
+                        name="imageUrlsString" 
+                        value={currentProductForm.imageUrlsString || ''} 
+                        onChange={(e) => handleInputChange(e, 'edit')} 
+                        className="col-span-3 min-h-[100px]" 
+                        placeholder="Enter image URLs, one per line. First URL is primary." 
+                        required 
+                    />
                   </div>
                   <DialogFooter>
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Changes</Button>
@@ -376,7 +437,7 @@ export default function AdminPage() {
                 <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
                   <div>
                     <p className="font-semibold">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">${product.price.toFixed(2)} - {product.category}</p>
+                    <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
                   </div>
                   <div className="space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
@@ -577,3 +638,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
