@@ -4,95 +4,95 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%; /* White */
-    --foreground: 275 100% 25.5%; /* Deep Purple */
+    --background: 210 60% 98%; /* Very Light Blue-Gray */
+    --foreground: 240 60% 15%; /* Dark Navy */
 
     --card: 0 0% 100%; /* White */
-    --card-foreground: 275 100% 25.5%; /* Deep Purple */
+    --card-foreground: 240 60% 15%; /* Dark Navy */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 275 100% 25.5%; /* Deep Purple */
+    --popover-foreground: 240 60% 15%; /* Dark Navy */
 
-    --primary: 275 100% 25.5%; /* Deep Purple */
+    --primary: 240 70% 40%; /* Navy Blue */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 275 20% 95%; /* Lighter Purple for secondary elements */
-    --secondary-foreground: 275 100% 25.5%; /* Deep Purple */
+    --secondary: 220 50% 90%; /* Light Steel Blue */
+    --secondary-foreground: 240 70% 40%; /* Navy Blue */
 
-    --muted: 0 0% 96.1%; /* Light Gray */
-    --muted-foreground: 0 0% 45.1%; /* Gray */
+    --muted: 220 30% 96%; /* Very Light Grayish Blue */
+    --muted-foreground: 220 20% 45%; /* Slate Gray */
 
-    --accent: 50.6 100% 50%; /* Gold */
-    --accent-foreground: 275 100% 15.5%; /* Darker Purple for contrast on Gold */
+    --accent: 45 100% 50%; /* Gold */
+    --accent-foreground: 240 60% 15%; /* Dark Navy */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 275 20% 85%; /* Light Purple Border */
-    --input: 275 20% 90%; /* Light Purple Input Background */
-    --ring: 50.6 100% 50%; /* Gold */
+    --border: 220 40% 85%; /* Light Blue-Gray Border */
+    --input: 220 40% 95%; /* Very Light Blue-Gray Input Background */
+    --ring: 45 100% 50%; /* Gold */
 
     --radius: 0.5rem;
 
-    --chart-1: 275 100% 50%;
-    --chart-2: 50.6 100% 60%;
-    --chart-3: 275 70% 70%;
-    --chart-4: 50.6 80% 70%;
-    --chart-5: 275 50% 80%;
+    --chart-1: 240 70% 50%; /* Navy variant */
+    --chart-2: 45 100% 60%; /* Gold variant */
+    --chart-3: 220 60% 65%; /* Steel Blue variant */
+    --chart-4: 45 80% 70%; /* Lighter Gold variant */
+    --chart-5: 210 50% 75%; /* Light Blue variant */
 
-    --sidebar-background: 275 10% 98%;
-    --sidebar-foreground: 275 100% 25.5%;
-    --sidebar-primary: 50.6 100% 50%;
-    --sidebar-primary-foreground: 275 100% 15.5%;
-    --sidebar-accent: 275 20% 92%;
-    --sidebar-accent-foreground: 275 100% 25.5%;
-    --sidebar-border: 275 20% 85%;
-    --sidebar-ring: 50.6 100% 50%;
+    --sidebar-background: 240 15% 97%; /* Very light desaturated navy */
+    --sidebar-foreground: 240 60% 15%; /* Dark Navy */
+    --sidebar-primary: 45 100% 50%; /* Gold */
+    --sidebar-primary-foreground: 240 60% 15%; /* Dark Navy */
+    --sidebar-accent: 240 30% 92%; /* Lighter desaturated navy */
+    --sidebar-accent-foreground: 240 60% 15%; /* Dark Navy */
+    --sidebar-border: 240 25% 85%; /* Light desaturated navy border */
+    --sidebar-ring: 45 100% 50%; /* Gold */
   }
 
   .dark {
-    --background: 275 20% 10%; /* Very Dark Purple */
-    --foreground: 50 80% 85%; /* Light Gold/Off-white */
+    --background: 240 40% 8%; /* Very Dark Desaturated Blue */
+    --foreground: 210 40% 95%; /* Pale Blue White */
 
-    --card: 275 20% 12%; /* Dark Purple Card */
-    --card-foreground: 50 80% 85%; /* Light Gold/Off-white */
+    --card: 240 35% 12%; /* Dark Desaturated Blue Card */
+    --card-foreground: 210 40% 95%; /* Pale Blue White */
 
-    --popover: 275 20% 10%; /* Very Dark Purple */
-    --popover-foreground: 50 80% 85%; /* Light Gold/Off-white */
+    --popover: 240 40% 8%; /* Very Dark Desaturated Blue */
+    --popover-foreground: 210 40% 95%; /* Pale Blue White */
 
-    --primary: 50.6 100% 50%; /* Gold */
-    --primary-foreground: 275 100% 15.5%; /* Darker Purple */
+    --primary: 220 80% 65%; /* Bright Cornflower Blue */
+    --primary-foreground: 240 40% 10%; /* Very Dark Blue for contrast */
 
-    --secondary: 275 20% 20%; /* Darker Purple for secondary */
-    --secondary-foreground: 50 80% 85%; /* Light Gold/Off-white */
+    --secondary: 240 30% 20%; /* Darker Desaturated Blue */
+    --secondary-foreground: 210 40% 95%; /* Pale Blue White */
 
-    --muted: 275 20% 20%; /* Darker Purple */
-    --muted-foreground: 0 0% 63.9%; /* Lighter Gray */
+    --muted: 240 30% 20%; /* Darker Desaturated Blue */
+    --muted-foreground: 210 20% 65%; /* Medium Grayish Blue */
 
-    --accent: 50.6 100% 60%; /* Brighter Gold */
-    --accent-foreground: 275 100% 10.5%; /* Very Dark Purple */
+    --accent: 50 100% 60%; /* Bright Gold */
+    --accent-foreground: 240 40% 10%; /* Very Dark Blue */
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 275 20% 30%; /* Dark Purple Border */
-    --input: 275 20% 25%; /* Dark Purple Input */
-    --ring: 50.6 100% 60%; /* Brighter Gold */
+    --border: 240 25% 30%; /* Dark Blue-Gray Border */
+    --input: 240 25% 25%; /* Dark Blue-Gray Input */
+    --ring: 50 100% 60%; /* Bright Gold */
     
-    --chart-1: 50.6 100% 50%;
-    --chart-2: 275 100% 70%;
-    --chart-3: 50.6 80% 60%;
-    --chart-4: 275 70% 80%;
-    --chart-5: 50.6 60% 70%;
+    --chart-1: 220 80% 65%; /* Bright Cornflower Blue */
+    --chart-2: 50 100% 60%; /* Bright Gold */
+    --chart-3: 220 60% 55%; /* Medium Cornflower Blue */
+    --chart-4: 50 80% 70%; /* Lighter Gold */
+    --chart-5: 210 50% 75%; /* Light Blue Gray */
 
-    --sidebar-background: 275 20% 8%;
-    --sidebar-foreground: 50 80% 85%;
-    --sidebar-primary: 50.6 100% 50%;
-    --sidebar-primary-foreground: 275 100% 15.5%;
-    --sidebar-accent: 275 20% 15%;
-    --sidebar-accent-foreground: 50 80% 85%;
-    --sidebar-border: 275 20% 30%;
-    --sidebar-ring: 50.6 100% 60%;
+    --sidebar-background: 240 30% 6%; /* Even darker navy */
+    --sidebar-foreground: 210 40% 95%; /* Pale Blue White */
+    --sidebar-primary: 50 100% 60%; /* Bright Gold */
+    --sidebar-primary-foreground: 240 30% 10%; /* Dark Navy */
+    --sidebar-accent: 240 30% 15%; /* Darker navy accent */
+    --sidebar-accent-foreground: 210 40% 95%; /* Pale Blue White */
+    --sidebar-border: 240 25% 25%; /* Dark navy border */
+    --sidebar-ring: 50 100% 60%; /* Bright Gold */
   }
 }
 
