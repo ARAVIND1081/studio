@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
 import Link from "next/link";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,9 @@ export default function AdminPage() {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
 
+  const [isContentDialogOpen, setIsContentDialogOpen] = useState(false);
+  const [currentContentInfoText, setCurrentContentInfoText] = useState('');
+
 
   const { toast } = useToast();
 
@@ -51,7 +54,8 @@ export default function AdminPage() {
   const refreshSiteSettings = () => {
     const currentSettings = getSiteSettings();
     setSiteSettings(currentSettings);
-    setCurrentSettingsForm(currentSettings);
+    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline }); // Only siteName and tagline for this dialog
+    setCurrentContentInfoText(currentSettings.contentManagementInfoText || '');
   }
 
   const handleDeleteProduct = (productId: string) => {
@@ -66,17 +70,19 @@ export default function AdminPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit' | 'settings') => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit' | 'settings' | 'content') => {
     const { name, value } = e.target;
     
     if (formType === 'settings') {
         setCurrentSettingsForm(prev => ({ ...prev, [name]: value }));
+    } else if (formType === 'content') {
+        setCurrentContentInfoText(value);
     } else {
         const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
         if (formType === 'add') {
-        setNewProduct(prev => ({ ...prev, [name]: parsedValue, }));
+          setNewProduct(prev => ({ ...prev, [name]: parsedValue, }));
         } else {
-        setCurrentProductForm(prev => ({ ...prev, [name]: parsedValue, }));
+          setCurrentProductForm(prev => ({ ...prev, [name]: parsedValue, }));
         }
     }
   };
@@ -132,24 +138,52 @@ export default function AdminPage() {
 
   const handleOpenSettingsDialog = () => {
     const currentSettings = getSiteSettings();
-    setCurrentSettingsForm(currentSettings);
+    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
     setIsSettingsDialogOpen(true);
   };
 
   const handleUpdateSiteSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentSettingsForm.siteName || !currentSettingsForm.siteTagline || !currentSettingsForm.contentManagementInfoText) {
-      toast({ title: "Missing Fields", description: "Site Name, Tagline, and Content Management Info Text cannot be empty.", variant: "destructive" });
+    if (!currentSettingsForm.siteName || !currentSettingsForm.siteTagline) {
+      toast({ title: "Missing Fields", description: "Site Name and Tagline cannot be empty.", variant: "destructive" });
       return;
     }
     try {
-      updateSiteSettings(currentSettingsForm);
+      // Ensure we only update the fields relevant to this dialog
+      const settingsToUpdate: Partial<SiteSettings> = {
+        siteName: currentSettingsForm.siteName,
+        siteTagline: currentSettingsForm.siteTagline,
+      };
+      updateSiteSettings(settingsToUpdate);
       refreshSiteSettings(); 
       toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
       setIsSettingsDialogOpen(false);
     } catch (error) {
       toast({ title: "Error", description: "Failed to update site settings.", variant: "destructive" });
       console.error("Error updating site settings:", error);
+    }
+  };
+
+  const handleOpenContentDialog = () => {
+    const currentSettings = getSiteSettings();
+    setCurrentContentInfoText(currentSettings.contentManagementInfoText || '');
+    setIsContentDialogOpen(true);
+  };
+
+  const handleUpdateContentInfoText = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentContentInfoText) {
+       toast({ title: "Missing Field", description: "Content Management Info Text cannot be empty.", variant: "destructive" });
+       return;
+    }
+    try {
+      updateSiteSettings({ contentManagementInfoText: currentContentInfoText });
+      refreshSiteSettings();
+      toast({ title: "Content Updated", description: "Content management info text has been updated." });
+      setIsContentDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update content info text.", variant: "destructive" });
+      console.error("Error updating content info text:", error);
     }
   };
 
@@ -283,21 +317,21 @@ export default function AdminPage() {
               <Settings className="mr-2 h-6 w-6 text-accent"/> Site Settings
             </CardTitle>
             <CardDescription>
-              Manage general site configurations like Site Name, Tagline, and admin content placeholders.
+              Manage general site configurations like Site Name and Tagline.
             </CardDescription>
           </CardHeader>
           <CardContent>
              <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="w-full mt-4 bg-primary hover:bg-accent hover:text-accent-foreground" onClick={handleOpenSettingsDialog}>
-                  Configure Settings
+                  Configure General Settings
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md"> {/* Adjusted width for more content */}
+              <DialogContent className="sm:max-w-md"> 
                 <DialogHeader>
                   <DialogTitle>Configure Site Settings</DialogTitle>
                   <DialogDescription>
-                    Update your site's name, tagline, and admin content placeholders. Click save when you're done.
+                    Update your site's name and tagline. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleUpdateSiteSettings} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
@@ -308,18 +342,6 @@ export default function AdminPage() {
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="siteTagline" className="text-right">Site Tagline</Label>
                     <Textarea id="siteTagline" name="siteTagline" value={currentSettingsForm.siteTagline || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4 pt-2"> {/* items-start for better Textarea alignment */}
-                    <Label htmlFor="contentManagementInfoText" className="text-right pt-2">Content Info</Label>
-                    <Textarea 
-                        id="contentManagementInfoText" 
-                        name="contentManagementInfoText" 
-                        value={currentSettingsForm.contentManagementInfoText || ''} 
-                        onChange={(e) => handleInputChange(e, 'settings')} 
-                        className="col-span-3 min-h-[100px]" 
-                        placeholder="Enter informational text for the Content Management section..."
-                        required 
-                    />
                   </div>
                   <DialogFooter className="mt-2">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Settings</Button>
@@ -340,20 +362,49 @@ export default function AdminPage() {
               <FileText className="mr-2 h-6 w-6 text-accent"/> Content Management
             </CardTitle>
             <CardDescription>
-              Edit page content, promotional banners, etc. (Overall feature is a placeholder).
+              Edit informational text for various site sections.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              {siteSettings.contentManagementInfoText || "Default placeholder text if not set."}
+              Current Info Text: "{siteSettings.contentManagementInfoText || "Default placeholder text if not set."}"
             </p>
-            {/* Button removed as the text above is now editable via Site Settings */}
+            <Dialog open={isContentDialogOpen} onOpenChange={setIsContentDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto bg-primary hover:bg-accent hover:text-accent-foreground" onClick={handleOpenContentDialog}>
+                  <Edit className="mr-2 h-5 w-5" /> Manage Content Info Text
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Edit Content Management Info Text</DialogTitle>
+                  <DialogDescription>
+                    Update the informational text displayed in the content management section.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUpdateContentInfoText} className="grid gap-4 py-4">
+                    <Label htmlFor="contentManagementInfoText" className="sr-only">Content Management Info Text</Label>
+                    <Textarea 
+                        id="contentManagementInfoText" 
+                        name="contentManagementInfoText" 
+                        value={currentContentInfoText} 
+                        onChange={(e) => handleInputChange(e, 'content')}
+                        className="col-span-3 min-h-[150px]" 
+                        placeholder="Enter informational text for the Content Management section..."
+                        required 
+                    />
+                  <DialogFooter>
+                    <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Content Text</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management and site settings (Site Name, Tagline, Content Info Text) are now interactive. Changes are in-memory and will reset on server restart.
+        Product management, site settings (Site Name, Tagline), and Content Info Text are now interactive. Changes are in-memory and will reset on server restart.
       </p>
     </div>
   );
