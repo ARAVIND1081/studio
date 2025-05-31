@@ -80,9 +80,9 @@ export default function HomePage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold font-headline mb-4 text-primary">Discover Our Collection</h1>
+        <h1 className="text-4xl font-bold font-headline mb-4 text-primary">Welcome to ShopSphere</h1>
         <p className="text-lg text-muted-foreground">
-          Browse through our curated selection of fine products. Use the filters to find exactly what you're looking for.
+          Explore our exclusive collection of products. Use the filters and sorting options to discover your next favorite item.
         </p>
       </div>
       
@@ -104,7 +104,7 @@ export default function HomePage() {
               <SearchX className="h-5 w-5 text-accent" />
               <AlertTitle className="font-headline text-accent">No Products Found</AlertTitle>
               <AlertDescription>
-                We couldn't find any products matching your current filters. Try adjusting your criteria.
+                We couldn't find any products matching your current filters. Try adjusting your criteria or check back later!
               </AlertDescription>
             </Alert>
           )}
