@@ -1,5 +1,5 @@
 
-import type { Product, Category, Review, ProductSpecification, SiteSettings } from '@/types';
+import type { Product, Category, Review, ProductSpecification, SiteSettings, User } from '@/types';
 
 // Keep CATEGORIES exported as it's static data
 export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
@@ -190,3 +190,36 @@ export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSett
   siteSettingsData = { ...siteSettingsData, ...newSettings };
   return { ...siteSettingsData }; // Return a copy
 };
+
+// --- User Management (In-memory, for UI Prototyping Only - NOT SECURE) ---
+let usersData: User[] = [
+    // Example user for testing login
+    { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' }
+];
+
+export const getUserByEmail = (email: string): User | undefined => {
+  return usersData.find(user => user.email === email);
+};
+
+export type UserCreateInput = Omit<User, 'id'>;
+
+export const createUser = (userInput: UserCreateInput): User | { error: string } => {
+  if (getUserByEmail(userInput.email)) {
+    return { error: 'Account already exists with this email.' };
+  }
+  const newId = `user${usersData.length + 1}`;
+  // IMPORTANT: In a real app, passwords MUST be hashed securely.
+  // Storing plain text passwords is a major security vulnerability.
+  const newUser: User = { ...userInput, id: newId };
+  usersData.push(newUser);
+  return { ...newUser }; // Return a copy
+};
+
+// Function to simulate login (VERY INSECURE - for UI demo only)
+export const verifyUserCredentials = (email: string, pass: string): User | null => {
+    const user = getUserByEmail(email);
+    if (user && user.password === pass) { // Plain text password check - BAD!
+        return user;
+    }
+    return null;
+}

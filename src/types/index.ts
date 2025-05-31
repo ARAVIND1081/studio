@@ -44,3 +44,10 @@ export interface SiteSettings {
   contactPageAddress?: string;
   contactPageAdditionalInfo?: string;
 }
+
+export interface User {
+  id: string;
+  name?: string;
+  email: string;
+  password?: string; // In a real app, this should be a securely hashed password
+}
