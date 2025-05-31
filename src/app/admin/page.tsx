@@ -8,11 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import Link from "next/link";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, KeyRound } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
+
+// --- IMPORTANT: Basic illustrative login ---
+// --- NOT FOR PRODUCTION USE. LACKS SECURITY. ---
+const HARDCODED_USERNAME = "admin";
+const HARDCODED_PASSWORD = "password";
+// --- End of illustrative login warning ---
 
 export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -50,13 +55,21 @@ export default function AdminPage() {
   const [isContentDialogOpen, setIsContentDialogOpen] = useState(false);
   const [editableContentForm, setEditableContentForm] = useState<Partial<SiteSettings>>({});
 
-
   const { toast } = useToast();
 
+  // --- Basic illustrative login state ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  // --- End of basic illustrative login state ---
+
   useEffect(() => {
-    refreshProducts();
-    refreshSiteSettings();
-  }, []);
+    if (isAuthenticated) {
+      refreshProducts();
+      refreshSiteSettings();
+    }
+  }, [isAuthenticated]);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
@@ -200,7 +213,6 @@ export default function AdminPage() {
 
   const handleUpdatePageContent = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Basic validation, can be expanded
     if (!editableContentForm.contentManagementInfoText || 
         !editableContentForm.homePageNoProductsTitle ||
         !editableContentForm.homePageNoProductsDescription ||
@@ -221,6 +233,72 @@ export default function AdminPage() {
     }
   };
 
+  // --- Basic illustrative login functions ---
+  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoginError(null);
+    if (loginUsername === HARDCODED_USERNAME && loginPassword === HARDCODED_PASSWORD) {
+      setIsAuthenticated(true);
+      setLoginUsername("");
+      setLoginPassword("");
+      toast({title: "Login Successful", description: "Welcome to the Admin Dashboard."});
+    } else {
+      setLoginError("Invalid username or password.");
+      toast({title: "Login Failed", description: "Invalid username or password.", variant: "destructive"});
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    toast({title: "Logged Out", description: "You have been logged out of the Admin Dashboard."});
+  };
+  // --- End of basic illustrative login functions ---
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <Card className="w-full max-w-md shadow-xl">
+          <CardHeader className="text-center">
+            <KeyRound className="mx-auto h-12 w-12 text-primary mb-3" />
+            <CardTitle className="text-3xl font-bold font-headline">Admin Login</CardTitle>
+            <CardDescription>Enter your credentials to access the dashboard.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input 
+                  id="username" 
+                  type="text" 
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="admin" 
+                  required 
+                  className="py-3 px-4 text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="password"
+                  required
+                  className="py-3 px-4 text-base"
+                />
+              </div>
+              {loginError && <p className="text-sm text-destructive text-center">{loginError}</p>}
+              <Button type="submit" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground text-lg py-3">
+                Login
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -229,6 +307,9 @@ export default function AdminPage() {
           <Shield className="mr-3 h-10 w-10 text-accent" />
           Admin Dashboard
         </h1>
+        <Button variant="outline" onClick={handleLogout} className="text-destructive hover:border-destructive hover:text-destructive">
+          <LogOut className="mr-2 h-5 w-5" /> Logout
+        </Button>
       </div>
       <p className="text-lg text-muted-foreground">
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
@@ -523,6 +604,7 @@ export default function AdminPage() {
 
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
+        Admin login is illustrative and uses hardcoded credentials ('admin'/'password').
       </p>
     </div>
   );
