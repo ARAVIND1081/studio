@@ -22,8 +22,8 @@ let productsData: Product[] = [
     description: 'A fusion of classic design and modern technology. Stay connected in style.',
     price: 299.99,
     category: 'Electronics',
-    imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png', 'https://placehold.co/800x600.png'],
+    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
+    images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'],
     rating: 4.8,
     specifications: [
       { name: 'Display', value: '1.4" AMOLED' },
@@ -38,8 +38,8 @@ let productsData: Product[] = [
     description: 'Handcrafted 100% silk scarf with an intricate design. The perfect accessory.',
     price: 120.00,
     category: 'Apparel',
-    imageUrl: 'https://placehold.co/600x400.png',
-    images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png'],
+    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
+    images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?3'],
     rating: 4.9,
     specifications: sampleSpecifications,
     reviews: [sampleReviews[0]],
@@ -50,7 +50,7 @@ let productsData: Product[] = [
     description: 'Brew the perfect cup every morning with this stylish and efficient coffee maker.',
     price: 89.50,
     category: 'Home Goods',
-    imageUrl: 'https://placehold.co/600x400.png',
+    imageUrl: 'https://placehold.co/800x600.png', // Set to images[0]
     images: ['https://placehold.co/800x600.png'],
     rating: 4.5,
     specifications: [
@@ -66,6 +66,7 @@ let productsData: Product[] = [
     price: 45.00,
     category: 'Books',
     imageUrl: 'https://placehold.co/600x400.png',
+    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
     rating: 4.7,
     specifications: [
       { name: 'Pages', value: '320' },
@@ -80,6 +81,7 @@ let productsData: Product[] = [
     price: 199.00,
     category: 'Beauty',
     imageUrl: 'https://placehold.co/600x400.png',
+    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
     rating: 5.0,
     specifications: [{ name: 'Volume', value: '100ml' }],
     reviews: sampleReviews,
@@ -91,6 +93,7 @@ let productsData: Product[] = [
     price: 250.00,
     category: 'Apparel',
     imageUrl: 'https://placehold.co/600x400.png',
+    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
     rating: 4.6,
     reviews: [],
     specifications: [],
@@ -102,6 +105,7 @@ let productsData: Product[] = [
     price: 349.00,
     category: 'Electronics',
     imageUrl: 'https://placehold.co/600x400.png',
+    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
     rating: 4.9,
     reviews: [],
     specifications: [],
@@ -113,11 +117,27 @@ let productsData: Product[] = [
     price: 75.00,
     category: 'Home Goods',
     imageUrl: 'https://placehold.co/600x400.png',
+    images: ['https://placehold.co/600x400.png'], // Created from imageUrl
     rating: 4.3,
     reviews: [],
     specifications: [],
   },
 ];
+
+// Ensure consistency for all products initially
+productsData = productsData.map(product => {
+  const defaultImg = 'https://placehold.co/600x400.png';
+  let currentImages = product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : []);
+  if (currentImages.length === 0) {
+    currentImages = [defaultImg];
+  }
+  return {
+    ...product,
+    images: currentImages,
+    imageUrl: currentImages[0],
+  };
+});
+
 
 // --- CRUD Functions for Products ---
 
@@ -141,11 +161,15 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
 
   const defaultImageUrl = 'https://placehold.co/600x400.png';
 
+  const images = productInput.images && productInput.images.length > 0 
+                 ? productInput.images 
+                 : (productInput.imageUrl ? [productInput.imageUrl] : [defaultImageUrl]);
+
   const newProduct: Product = {
     ...productInput,
     id: newId,
-    imageUrl: productInput.images && productInput.images.length > 0 ? productInput.images[0] : (productInput.imageUrl || defaultImageUrl),
-    images: productInput.images && productInput.images.length > 0 ? productInput.images : (productInput.imageUrl ? [productInput.imageUrl] : [defaultImageUrl]),
+    imageUrl: images[0], // Ensure imageUrl is from the images array
+    images: images,
     rating: productInput.rating ?? 0,
     specifications: productInput.specifications ?? [],
     reviews: productInput.reviews ?? [],
@@ -168,8 +192,13 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
   if (updates.images && updates.images.length > 0) {
     updatedProductData.imageUrl = updates.images[0];
   } else if (updates.images && updates.images.length === 0) { 
-    // If images array is cleared, fall back to a default or potentially clear imageUrl too
-    updatedProductData.imageUrl = 'https://placehold.co/600x400.png'; 
+    // If images array is cleared, fall back to a default
+    const defaultImg = 'https://placehold.co/600x400.png';
+    updatedProductData.imageUrl = defaultImg;
+    updatedProductData.images = [defaultImg];
+  } else if (updates.imageUrl && (!updates.images || updates.images.length === 0)) {
+    // If only imageUrl is updated, make images array consistent
+    updatedProductData.images = [updates.imageUrl];
   }
 
 
