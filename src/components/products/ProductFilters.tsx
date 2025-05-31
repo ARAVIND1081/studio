@@ -66,7 +66,7 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
             step={1000} // Adjusted step for INR
             value={[priceRange[0], priceRange[1]]}
             onValueChange={(value: [number, number]) => setPriceRange(value)}
-            className="mt-2 [&>span:first-child>span]:bg-accent [&>span:last-child]:bg-accent [&>span>span]:h-4 [&>span>span]:w-4 [&>span>span]:border-2"
+            className="mt-2 [&_[data-radix-slider-thumb]]:h-4 [&_[data-radix-slider-thumb]]:w-4 [&_[data-radix-slider-thumb]]:border-2 [&_[data-radix-slider-thumb]]:bg-accent [&_[data-radix-slider-thumb]]:border-accent [&_[data-radix-slider-range]]:bg-accent"
           />
         </div>
 
