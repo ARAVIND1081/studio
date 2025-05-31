@@ -8,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle } from 'lucide-react';
 import type { Product, SiteSettings } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
+import Image from 'next/image'; // For image previews
 
 const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
 
@@ -22,8 +23,7 @@ interface AdminProductFormInput {
   description: string;
   price: number;
   category: string;
-  imageUrlsString: string; // For multi-line textarea input
-  // other fields from ProductCreateInput if necessary, excluding id, imageUrl, images
+  imagePreviews: string[]; // Store Data URIs or existing URLs for preview
 }
 
 const initialNewProductFormState: AdminProductFormInput = {
@@ -31,7 +31,7 @@ const initialNewProductFormState: AdminProductFormInput = {
   description: "",
   price: 0,
   category: "",
-  imageUrlsString: "",
+  imagePreviews: [],
 };
 
 
@@ -126,12 +126,58 @@ export default function AdminPage() {
     }
   };
 
+  const handleImageFilesChange = async (event: ChangeEvent<HTMLInputElement>, formType: 'add' | 'edit') => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const filePromises = Array.from(files).map(file => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Failed to read file as Data URI'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    });
+
+    try {
+      const dataUris = await Promise.all(filePromises);
+      if (formType === 'add') {
+        setNewProductForm(prev => ({ ...prev, imagePreviews: dataUris }));
+      } else {
+        setCurrentProductForm(prev => ({ ...prev, imagePreviews: dataUris }));
+      }
+    } catch (error) {
+      console.error("Error converting files to Data URIs:", error);
+      toast({ title: "Image Error", description: "Could not process selected image(s).", variant: "destructive" });
+    }
+  };
+
+  const removeImagePreview = (index: number, formType: 'add' | 'edit') => {
+    if (formType === 'add') {
+      setNewProductForm(prev => ({
+        ...prev,
+        imagePreviews: prev.imagePreviews.filter((_, i) => i !== index),
+      }));
+    } else {
+      setCurrentProductForm(prev => ({
+        ...prev,
+        imagePreviews: (prev.imagePreviews || []).filter((_, i) => i !== index),
+      }));
+    }
+  };
+
+
   const handleAddNewProduct = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const urls = newProductForm.imageUrlsString.split('\n').map(url => url.trim()).filter(url => url.length > 0);
-
-    if (!newProductForm.name || !newProductForm.category || newProductForm.price <=0 || urls.length === 0) {
-        toast({ title: "Missing Fields", description: "Name, category, price, and at least one image URL are required.", variant: "destructive"});
+    
+    if (!newProductForm.name || !newProductForm.category || newProductForm.price <=0 || newProductForm.imagePreviews.length === 0) {
+        toast({ title: "Missing Fields", description: "Name, category, price, and at least one image are required.", variant: "destructive"});
         return;
     }
 
@@ -140,11 +186,11 @@ export default function AdminPage() {
         description: newProductForm.description,
         price: newProductForm.price,
         category: newProductForm.category,
-        imageUrl: urls[0],
-        images: urls,
-        rating: 0, // Default rating
-        specifications: [], // Default empty
-        reviews: [], // Default empty
+        imageUrl: newProductForm.imagePreviews[0], // First image as primary
+        images: newProductForm.imagePreviews,      // All images
+        rating: 0, 
+        specifications: [], 
+        reviews: [], 
     };
 
     try {
@@ -161,41 +207,35 @@ export default function AdminPage() {
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
-    const imageUrlsString = product.images && product.images.length > 0 
-        ? product.images.join('\n') 
-        : (product.imageUrl || '');
+    const existingImages = product.images && product.images.length > 0 
+        ? product.images 
+        : (product.imageUrl ? [product.imageUrl] : []);
+
     setCurrentProductForm({
       id: product.id,
       name: product.name,
       description: product.description,
       price: product.price,
       category: product.category,
-      imageUrlsString: imageUrlsString,
+      imagePreviews: existingImages,
     });
     setIsEditDialogOpen(true);
   };
 
   const handleUpdateProduct = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imageUrlsString) {
-      toast({ title: "Missing Fields", description: "Name, category, price, and at least one image URL are required.", variant: "destructive" });
+    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imagePreviews || currentProductForm.imagePreviews.length === 0) {
+      toast({ title: "Missing Fields", description: "Name, category, price, and at least one image are required.", variant: "destructive" });
       return;
     }
-
-    const urls = currentProductForm.imageUrlsString.split('\n').map(url => url.trim()).filter(url => url.length > 0);
-    if (urls.length === 0) {
-        toast({ title: "Missing Image URL", description: "At least one image URL is required.", variant: "destructive" });
-        return;
-    }
-
+    
     const productToUpdate: Partial<Omit<Product, 'id'>> = {
       name: currentProductForm.name,
       description: currentProductForm.description,
       price: currentProductForm.price,
       category: currentProductForm.category,
-      imageUrl: urls[0],
-      images: urls,
-      // Retain existing rating, specs, reviews unless specifically edited
+      imageUrl: currentProductForm.imagePreviews[0],
+      images: currentProductForm.imagePreviews,
     };
 
     try {
@@ -204,7 +244,7 @@ export default function AdminPage() {
       toast({ title: "Product Updated", description: `${currentProductForm.name} has been successfully updated.` });
       setIsEditDialogOpen(false);
       setEditingProduct(null);
-      setCurrentProductForm({});
+      setCurrentProductForm({imagePreviews: []}); // Reset form, including previews
     } catch (error) {
       toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
       console.error("Error updating product:", error);
@@ -335,7 +375,7 @@ export default function AdminPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => { setIsAddDialogOpen(isOpen); if (!isOpen) setNewProductForm(initialNewProductFormState); }}>
               <DialogTrigger asChild>
                 <Button className="w-full mt-4 bg-primary hover:bg-accent hover:text-accent-foreground">
                   <PlusCircle className="mr-2 h-5 w-5" /> Add New Product
@@ -366,19 +406,30 @@ export default function AdminPage() {
                     <Input id="add-category" name="category" value={newProductForm.category} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="add-imageUrlsString" className="text-right pt-2 flex items-center">
-                      <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> URLs
+                    <Label htmlFor="add-images" className="text-right pt-2 flex items-center">
+                      <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images
                     </Label>
-                    <Textarea 
-                        id="add-imageUrlsString" 
-                        name="imageUrlsString" 
-                        value={newProductForm.imageUrlsString} 
-                        onChange={(e) => handleInputChange(e, 'add')} 
-                        className="col-span-3 min-h-[100px]" 
-                        placeholder="Enter image URLs, one per line. First URL is primary." 
-                        required 
+                    <Input 
+                        id="add-images" 
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageFilesChange(e, 'add')} 
+                        className="col-span-3" 
                     />
                   </div>
+                  {newProductForm.imagePreviews.length > 0 && (
+                    <div className="col-span-4 grid grid-cols-3 gap-2 mt-2 pl-[25%]">
+                      {newProductForm.imagePreviews.map((previewSrc, index) => (
+                        <div key={index} className="relative group">
+                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
+                          <Button type="button" variant="ghost" size="icon" className="absolute top-0 right-0 bg-black/50 text-white group-hover:opacity-100 opacity-0 h-6 w-6" onClick={() => removeImagePreview(index, 'add')}>
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <DialogFooter>
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Product</Button>
                   </DialogFooter>
@@ -386,7 +437,7 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => { setIsEditDialogOpen(isOpen); if (!isOpen) { setEditingProduct(null); setCurrentProductForm({imagePreviews: []});}}}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Edit Product</DialogTitle>
@@ -412,19 +463,31 @@ export default function AdminPage() {
                     <Input id="edit-category" name="category" value={currentProductForm.category || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4">
-                     <Label htmlFor="edit-imageUrlsString" className="text-right pt-2 flex items-center">
-                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> URLs
+                     <Label htmlFor="edit-images" className="text-right pt-2 flex items-center">
+                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images
                      </Label>
-                    <Textarea 
-                        id="edit-imageUrlsString" 
-                        name="imageUrlsString" 
-                        value={currentProductForm.imageUrlsString || ''} 
-                        onChange={(e) => handleInputChange(e, 'edit')} 
-                        className="col-span-3 min-h-[100px]" 
-                        placeholder="Enter image URLs, one per line. First URL is primary." 
-                        required 
+                    <Input 
+                        id="edit-images" 
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageFilesChange(e, 'edit')} 
+                        className="col-span-3"
+                        placeholder="Upload new to replace existing"
                     />
                   </div>
+                  {(currentProductForm.imagePreviews || []).length > 0 && (
+                    <div className="col-span-4 grid grid-cols-3 gap-2 mt-2 pl-[25%]">
+                      {(currentProductForm.imagePreviews || []).map((previewSrc, index) => (
+                        <div key={index} className="relative group">
+                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
+                           <Button type="button" variant="ghost" size="icon" className="absolute top-0 right-0 bg-black/50 text-white group-hover:opacity-100 opacity-0 h-6 w-6" onClick={() => removeImagePreview(index, 'edit')}>
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <DialogFooter>
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Changes</Button>
                   </DialogFooter>
@@ -435,9 +498,12 @@ export default function AdminPage() {
             <div className="max-h-72 overflow-y-auto pr-2 space-y-3">
               {products.map(product => (
                 <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                  <div>
-                    <p className="font-semibold">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
+                  <div className="flex items-center gap-3">
+                    <Image src={product.imageUrl} alt={product.name} width={40} height={30} className="rounded object-cover aspect-[4/3]" data-ai-hint="product thumbnail" />
+                    <div>
+                      <p className="font-semibold">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
+                    </div>
                   </div>
                   <div className="space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
@@ -633,9 +699,9 @@ export default function AdminPage() {
 
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
-        Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}'.
+        Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}'. Image "uploads" are client-side Data URI conversions.
       </p>
     </div>
   );
 }
-
+    
