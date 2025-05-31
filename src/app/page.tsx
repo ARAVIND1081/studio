@@ -8,8 +8,10 @@ import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShoppingBag } from 'lucide-react';
 
+const HOME_PAGE_PRODUCT_LIMIT = 8;
+
 export default function HomePage() {
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentSiteSettings, setCurrentSiteSettings] = useState<SiteSettings>({
     siteName: "ShopSphere",
@@ -23,15 +25,16 @@ export default function HomePage() {
     setCurrentSiteSettings(settings);
     
     setTimeout(() => {
-      setAllProducts(getAllProducts()); 
+      const allProducts = getAllProducts();
+      setDisplayedProducts(allProducts.slice(0, HOME_PAGE_PRODUCT_LIMIT)); 
       setIsLoading(false);
     }, 500); 
   }, []);
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {Array.from({ length: 8 }).map((_, index) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+        {Array.from({ length: HOME_PAGE_PRODUCT_LIMIT }).map((_, index) => (
           <div key={index} className="border rounded-lg p-4 shadow-lg">
             <div className="bg-muted aspect-[4/3] rounded animate-pulse mb-4"></div>
             <div className="h-6 bg-muted rounded animate-pulse w-3/4 mb-2"></div>
@@ -52,9 +55,9 @@ export default function HomePage() {
         </p>
       </div>
       
-      {allProducts.length > 0 ? (
+      {displayedProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
-          {allProducts.map(product => (
+          {displayedProducts.map(product => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
