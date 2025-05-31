@@ -17,10 +17,10 @@ function loadFromLocalStorage<T>(key: string): T | null {
   try {
     const storedValue = localStorage.getItem(key);
     if (storedValue) {
-      return JSON.parse(storedValue);
+      return JSON.parse(storedValue) as T;
     }
   } catch (error) {
-    console.error(`Error loading ${key} from localStorage:`, error);
+    console.error(`Error loading or parsing ${key} from localStorage:`, error);
     localStorage.removeItem(key); // Clear corrupted data
   }
   return null;
@@ -50,7 +50,7 @@ const sampleSpecifications: ProductSpecification[] = [
 ];
 
 // --- Product Data Initialization ---
-const DEFAULT_PRODUCTS_SEED: Product[] = [
+const DEFAULT_PRODUCTS_SEED_RAW: Omit<Product, 'id' | 'rating' | 'specifications' | 'reviews' | 'images' | 'imageUrl'>[] & Partial<Product>[] = [
   {
     id: '1',
     name: 'Elegant Smartwatch X1',
@@ -185,52 +185,52 @@ const DEFAULT_PRODUCTS_SEED: Product[] = [
         reviews: [],
     };
   })
-  // End of 50 new products
-].map(product => { // Ensure consistency for all default seed products
+];
+
+const DEFAULT_PRODUCTS_SEED: Product[] = DEFAULT_PRODUCTS_SEED_RAW.map((product, index) => {
   const defaultImg = 'https://placehold.co/600x400.png';
-  const images = product.images && product.images.length > 0 
-                 ? product.images 
-                 : (product.imageUrl ? [product.imageUrl] : [defaultImg]);
+  const pImages = product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : [defaultImg]);
   return {
-    ...product,
-    images: images,
-    imageUrl: images[0],
+    id: product.id || `${index + 1}`, // Ensure ID
+    name: product.name || `Product ${index + 1}`,
+    description: product.description || 'Default description',
+    price: product.price || 0,
+    category: product.category || CATEGORIES[0],
+    imageUrl: pImages[0],
+    images: pImages,
     rating: product.rating ?? parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
     specifications: product.specifications ?? [],
     reviews: product.reviews ?? [],
   };
 });
 
+
 let productsData: Product[];
 
 if (typeof window !== 'undefined') {
-  const storedProductsRaw = loadFromLocalStorage<string>(PRODUCTS_STORAGE_KEY);
-  if (storedProductsRaw) {
-    try {
-      const storedProductsParsed: Product[] = JSON.parse(storedProductsRaw).map((p: any) => ({ // Map to ensure consistency
-        ...p,
-        id: String(p.id), // Ensure ID is string
-        images: (p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images : (p.imageUrl ? [p.imageUrl] : ['https://placehold.co/600x400.png']),
-        imageUrl: ((p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : p.imageUrl) || 'https://placehold.co/600x400.png',
-        rating: p.rating ?? parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
-        specifications: p.specifications ?? [],
-        reviews: p.reviews ?? [],
-      }));
+  const storedProducts = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY);
 
-      if (storedProductsParsed.length < DEFAULT_PRODUCTS_SEED.length) {
-        // console.log("localStorage product list is shorter than current default. Upgrading localStorage.");
-        productsData = [...DEFAULT_PRODUCTS_SEED];
-        saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
-      } else {
-        productsData = storedProductsParsed;
-      }
-    } catch (error) {
-      console.error('Error parsing products from localStorage. Initializing with default seed data.', error);
+  if (storedProducts) {
+    const validatedStoredProducts: Product[] = storedProducts.map((p: any) => ({
+        id: String(p.id || 'unknown'),
+        name: p.name || `Unnamed Product ${p.id || 'unknown'}`,
+        description: p.description || 'No description available.',
+        price: typeof p.price === 'number' ? p.price : 0,
+        category: p.category || CATEGORIES[0],
+        imageUrl: ((p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : p.imageUrl) || 'https://placehold.co/600x400.png',
+        images: (p.images && Array.isArray(p.images) && p.images.length > 0) ? p.images : (p.imageUrl ? [p.imageUrl] : ['https://placehold.co/600x400.png']),
+        rating: typeof p.rating === 'number' ? p.rating : parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
+        specifications: Array.isArray(p.specifications) ? p.specifications : [],
+        reviews: Array.isArray(p.reviews) ? p.reviews : [],
+    }));
+
+    if (validatedStoredProducts.length < DEFAULT_PRODUCTS_SEED.length) {
       productsData = [...DEFAULT_PRODUCTS_SEED];
       saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+    } else {
+      productsData = validatedStoredProducts;
     }
   } else {
-    // console.log("No products in localStorage. Initializing with default seed data.");
     productsData = [...DEFAULT_PRODUCTS_SEED];
     saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
   }
@@ -367,19 +367,13 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 let siteSettingsData: SiteSettings;
 
 if (typeof window !== 'undefined') {
-  const storedSettingsRaw = loadFromLocalStorage<string>(SETTINGS_STORAGE_KEY);
-  if (storedSettingsRaw) {
-    try {
-      const parsedStoredSettings = JSON.parse(storedSettingsRaw);
-      siteSettingsData = { ...DEFAULT_SITE_SETTINGS, ...parsedStoredSettings };
-      // Save back to ensure any new default fields are persisted if they weren't in localStorage
-      if (Object.keys(DEFAULT_SITE_SETTINGS).some(key => !(key in parsedStoredSettings))) {
-         saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
-      }
-    } catch (error) {
-      console.error('Error parsing site settings from localStorage. Initializing with defaults.', error);
-      siteSettingsData = { ...DEFAULT_SITE_SETTINGS };
-      saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
+  const storedSettings = loadFromLocalStorage<SiteSettings>(SETTINGS_STORAGE_KEY);
+  if (storedSettings) {
+    // Merge stored settings with defaults to ensure all keys are present
+    siteSettingsData = { ...DEFAULT_SITE_SETTINGS, ...storedSettings };
+    // Save back if the loaded settings were missing some default keys
+    if (Object.keys(DEFAULT_SITE_SETTINGS).some(key => !(key in storedSettings))) {
+       saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
     }
   } else {
     siteSettingsData = { ...DEFAULT_SITE_SETTINGS };
@@ -409,28 +403,16 @@ const DEFAULT_USERS_DATA: User[] = [
 let usersData: User[];
 
 if (typeof window !== 'undefined') {
-  const storedUsersRaw = loadFromLocalStorage<string>(USERS_STORAGE_KEY);
-  if (storedUsersRaw) {
-    try {
-      const storedUsersParsed: User[] = JSON.parse(storedUsersRaw);
-      // Simple strategy: if localStorage has fewer users than default, it might be stale regarding default users.
-      // For users, usually localStorage is king if it exists for user-created accounts.
-      // But if default users are updated in code, this ensures they are present.
-      const combinedUsers = [...storedUsersParsed];
-      DEFAULT_USERS_DATA.forEach(defaultUser => {
-        if (!combinedUsers.find(u => u.email === defaultUser.email)) {
-          combinedUsers.push(defaultUser);
-        }
-      });
-      usersData = combinedUsers;
-      // Save back if we added default users
-      if (usersData.length > storedUsersParsed.length) {
-        saveToLocalStorage(USERS_STORAGE_KEY, usersData);
+  const storedUsers = loadFromLocalStorage<User[]>(USERS_STORAGE_KEY);
+  if (storedUsers) {
+    const combinedUsers = [...storedUsers];
+    DEFAULT_USERS_DATA.forEach(defaultUser => {
+      if (!combinedUsers.find(u => u.email === defaultUser.email)) {
+        combinedUsers.push(defaultUser);
       }
-
-    } catch (error) {
-      console.error('Error parsing users from localStorage. Initializing with defaults.', error);
-      usersData = [...DEFAULT_USERS_DATA];
+    });
+    usersData = combinedUsers;
+    if (usersData.length > storedUsers.length) {
       saveToLocalStorage(USERS_STORAGE_KEY, usersData);
     }
   } else {
@@ -461,7 +443,7 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
 
 export const verifyUserCredentials = (email: string, pass: string): User | null => {
     const user = usersData.find(u => u.email === email);
-    if (user && user.password === pass) {
+    if (user && user.password === pass) { // In a real app, compare hashed passwords
         return {...user};
     }
     return null;
