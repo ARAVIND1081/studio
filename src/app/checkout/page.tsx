@@ -91,6 +91,11 @@ export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart, getItemCount } = useCart();
   const [selectedShippingPrice, setSelectedShippingPrice] = useState(shippingOptions[0].price);
 
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
@@ -115,14 +120,16 @@ export default function CheckoutPage() {
   });
 
   const itemsSubtotal = getCartTotal();
-  const orderTotal = itemsSubtotal + selectedShippingPrice;
+  const mockTaxes = itemsSubtotal * 0.07; // Calculate mock taxes
+  const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
+
 
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (hasMounted && cartItems.length === 0) {
       toast({ title: "Your cart is empty", description: "Please add items to your cart before proceeding to checkout.", variant: "destructive" });
       router.push('/cart');
     }
-  }, [cartItems, router, toast]);
+  }, [hasMounted, cartItems, router, toast]);
 
   const onSubmit = (data: CheckoutFormValues) => {
     console.log("Checkout data:", data);
@@ -131,10 +138,20 @@ export default function CheckoutPage() {
       description: "Thank you for your purchase. Your order is being processed.",
     });
     clearCart();
-    router.push(`/order-confirmation?orderTotal=${orderTotal.toFixed(2)}&itemCount=${getItemCount()}`);
+    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${getItemCount()}`);
   };
 
+  if (!hasMounted) {
+    // Render a consistent loading state or what the server would output (empty cart state)
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <p className="text-lg text-muted-foreground">Loading checkout...</p>
+      </div>
+    );
+  }
+
   if (cartItems.length === 0) {
+    // This state will be reached after mounting if cart is empty, useEffect above will redirect
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Redirecting to cart...</p>
@@ -329,16 +346,15 @@ export default function CheckoutPage() {
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">${selectedShippingPrice.toFixed(2)}</span>
                   </div>
-                  {/* Mock Taxes - can be made more dynamic if needed */}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Estimated Taxes</span>
-                    <span className="font-medium">${(itemsSubtotal * 0.07).toFixed(2)}</span> 
+                    <span className="font-medium">${mockTaxes.toFixed(2)}</span> 
                   </div>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
                   <span className="text-primary">Order Total</span>
-                  <span className="text-accent">${(orderTotal + (itemsSubtotal * 0.07)).toFixed(2)}</span>
+                  <span className="text-accent">${finalOrderTotal.toFixed(2)}</span>
                 </div>
               </CardContent>
               <CardFooter>
@@ -353,3 +369,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    
