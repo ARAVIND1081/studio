@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -77,33 +78,38 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-start gap-8">
-      <aside className="w-full lg:w-1/4 xl:w-1/5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-        <ProductFilters onFilterChange={setFilters} initialFilters={filters} />
-      </aside>
-      <section className="w-full lg:w-3/4 xl:w-4/5">
+    <div>
+      <div className="mb-8">
         <h1 className="text-4xl font-bold font-headline mb-4 text-primary">Discover Our Collection</h1>
-        <p className="text-lg text-muted-foreground mb-8">
+        <p className="text-lg text-muted-foreground">
           Browse through our curated selection of fine products. Use the filters to find exactly what you're looking for.
         </p>
-        <SortDropdown onSortChange={setSortOption} currentSort={sortOption} />
-        <Separator className="my-6" />
-        {filteredAndSortedProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
-            {filteredAndSortedProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <Alert variant="default" className="mt-8 border-accent text-accent-foreground bg-accent/10">
-            <SearchX className="h-5 w-5 text-accent" />
-            <AlertTitle className="font-headline text-accent">No Products Found</AlertTitle>
-            <AlertDescription>
-              We couldn't find any products matching your current filters. Try adjusting your criteria.
-            </AlertDescription>
-          </Alert>
-        )}
-      </section>
+      </div>
+      
+      <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+        <aside className="w-full lg:w-1/4 xl:w-1/5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <ProductFilters onFilterChange={setFilters} initialFilters={filters} />
+        </aside>
+        <section className="w-full lg:w-3/4 xl:w-4/5">
+          <SortDropdown onSortChange={setSortOption} currentSort={sortOption} />
+          <Separator className="my-6" />
+          {filteredAndSortedProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
+              {filteredAndSortedProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <Alert variant="default" className="mt-8 border-accent text-accent-foreground bg-accent/10">
+              <SearchX className="h-5 w-5 text-accent" />
+              <AlertTitle className="font-headline text-accent">No Products Found</AlertTitle>
+              <AlertDescription>
+                We couldn't find any products matching your current filters. Try adjusting your criteria.
+              </AlertDescription>
+            </Alert>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
