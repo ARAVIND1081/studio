@@ -25,6 +25,9 @@ export function Header() {
           ShopSphere
         </Link>
         <nav className="space-x-6 flex items-center">
+          <Link href="/" className="text-foreground hover:text-accent transition-colors">
+            Home
+          </Link>
           <Link href="/shop" className="text-foreground hover:text-accent transition-colors">
             Products
           </Link>
