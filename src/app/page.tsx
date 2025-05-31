@@ -2,7 +2,7 @@
 'use client';
 
 import { ProductCard } from '@/components/products/ProductCard';
-import { getAllProducts } from '@/lib/data'; // Changed from PRODUCTS
+import { getAllProducts, getSiteSettings } from '@/lib/data';
 import type { Product } from '@/types';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,13 +11,20 @@ import { ShoppingBag } from 'lucide-react';
 export default function HomePage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [siteTagline, setSiteTagline] = useState("Your premier destination for luxury and style. Explore our curated collection.");
+  const [siteName, setSiteName] = useState("ShopSphere");
+
 
   useEffect(() => {
+    const settings = getSiteSettings();
+    setSiteName(settings.siteName);
+    setSiteTagline(settings.siteTagline);
+    
     // Simulate fetching products
     setTimeout(() => {
-      setAllProducts(getAllProducts()); // Use getAllProducts
+      setAllProducts(getAllProducts()); 
       setIsLoading(false);
-    }, 500); // Simulating network delay
+    }, 500); 
   }, []);
 
   if (isLoading) {
@@ -38,9 +45,9 @@ export default function HomePage() {
   return (
     <div>
       <div className="mb-12 text-center">
-        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to ShopSphere</h1>
+        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to {siteName}</h1>
         <p className="text-xl text-muted-foreground">
-          Your premier destination for luxury and style. Explore our curated collection.
+          {siteTagline}
         </p>
       </div>
       

@@ -1,3 +1,4 @@
+
 export interface Review {
   id: string;
   author: string;
@@ -30,3 +31,8 @@ export interface CartItem {
 }
 
 export type Category = string;
+
+export interface SiteSettings {
+  siteName: string;
+  siteTagline: string;
+}

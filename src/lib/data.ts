@@ -1,5 +1,5 @@
 
-import type { Product, Category, Review, ProductSpecification } from '@/types';
+import type { Product, Category, Review, ProductSpecification, SiteSettings } from '@/types';
 
 // Keep CATEGORIES exported as it's static data
 export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
@@ -123,13 +123,11 @@ let productsData: Product[] = [
 
 // READ
 export const getAllProducts = (): Product[] => {
-  // Return a shallow copy of each product to prevent direct modification of the internal store through the returned array.
   return productsData.map(p => ({ ...p }));
 };
 
 export const getProductById = (id: string): Product | undefined => {
   const product = productsData.find(p => p.id === id);
-  // Return a shallow copy of the product if found.
   return product ? { ...product } : undefined;
 };
 
@@ -150,7 +148,7 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
     images: productInput.images ?? (productInput.imageUrl ? [productInput.imageUrl] : []),
   };
   productsData.push(newProduct);
-  return { ...newProduct }; // Return a copy
+  return { ...newProduct }; 
 };
 
 // UPDATE
@@ -160,7 +158,7 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
     return undefined;
   }
   productsData[productIndex] = { ...productsData[productIndex], ...updates };
-  return { ...productsData[productIndex] }; // Return a copy of the updated product
+  return { ...productsData[productIndex] }; 
 };
 
 // DELETE
@@ -168,4 +166,19 @@ export const deleteProduct = (id: string): boolean => {
   const initialLength = productsData.length;
   productsData = productsData.filter(p => p.id !== id);
   return productsData.length < initialLength;
+};
+
+// --- Site Settings ---
+let siteSettingsData: SiteSettings = {
+  siteName: "ShopSphere",
+  siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
+};
+
+export const getSiteSettings = (): SiteSettings => {
+  return { ...siteSettingsData }; // Return a copy
+};
+
+export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSettings => {
+  siteSettingsData = { ...siteSettingsData, ...newSettings };
+  return { ...siteSettingsData }; // Return a copy
 };

@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput } from "@/lib/data";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, ProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
 import Link from "next/link";
 import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle } from 'lucide-react';
-import type { Product } from "@/types";
+import type { Product, SiteSettings } from "@/types";
 import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,15 +32,27 @@ export default function AdminPage() {
   });
   const [currentProductForm, setCurrentProductForm] = useState<Partial<Product>>({});
 
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ siteName: '', siteTagline: '' });
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
+
+
   const { toast } = useToast();
 
   useEffect(() => {
     refreshProducts();
+    refreshSiteSettings();
   }, []);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
   };
+
+  const refreshSiteSettings = () => {
+    const currentSettings = getSiteSettings();
+    setSiteSettings(currentSettings);
+    setCurrentSettingsForm(currentSettings);
+  }
 
   const handleDeleteProduct = (productId: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -54,20 +66,18 @@ export default function AdminPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit') => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formType: 'add' | 'edit' | 'settings') => {
     const { name, value } = e.target;
-    const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
-
-    if (formType === 'add') {
-      setNewProduct(prev => ({
-        ...prev,
-        [name]: parsedValue,
-      }));
+    
+    if (formType === 'settings') {
+        setCurrentSettingsForm(prev => ({ ...prev, [name]: value }));
     } else {
-      setCurrentProductForm(prev => ({
-        ...prev,
-        [name]: parsedValue,
-      }));
+        const parsedValue = name === 'price' ? parseFloat(value) || 0 : value;
+        if (formType === 'add') {
+        setNewProduct(prev => ({ ...prev, [name]: parsedValue, }));
+        } else {
+        setCurrentProductForm(prev => ({ ...prev, [name]: parsedValue, }));
+        }
     }
   };
 
@@ -117,6 +127,31 @@ export default function AdminPage() {
     } catch (error) {
       toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
       console.error("Error updating product:", error);
+    }
+  };
+
+  const handleOpenSettingsDialog = () => {
+    const currentSettings = getSiteSettings();
+    setCurrentSettingsForm(currentSettings);
+    setIsSettingsDialogOpen(true);
+  };
+
+  const handleUpdateSiteSettings = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentSettingsForm.siteName || !currentSettingsForm.siteTagline) {
+      toast({ title: "Missing Fields", description: "Site Name and Tagline cannot be empty.", variant: "destructive" });
+      return;
+    }
+    try {
+      updateSiteSettings(currentSettingsForm);
+      refreshSiteSettings(); // Refresh settings displayed on admin page if any, and internal state
+      toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
+      setIsSettingsDialogOpen(false);
+      // Optionally, force a reload or use a global state to reflect changes in Header/Footer immediately
+      // For now, Header/Footer will update on next mount/navigation.
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update site settings.", variant: "destructive" });
+      console.error("Error updating site settings:", error);
     }
   };
 
@@ -250,15 +285,42 @@ export default function AdminPage() {
               <Settings className="mr-2 h-6 w-6 text-accent"/> Site Settings
             </CardTitle>
             <CardDescription>
-              Manage general site configurations (Placeholder).
+              Manage general site configurations like Site Name and Tagline.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              Theme customization, contact information, and other global settings will be managed here.
-              This functionality is currently under development.
-            </p>
-            <Button className="mt-4" disabled>Configure Settings</Button>
+             <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full mt-4 bg-primary hover:bg-accent hover:text-accent-foreground" onClick={handleOpenSettingsDialog}>
+                  Configure Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Configure Site Settings</DialogTitle>
+                  <DialogDescription>
+                    Update your site's name and tagline. Click save when you're done.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUpdateSiteSettings} className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="siteName" className="text-right">Site Name</Label>
+                    <Input id="siteName" name="siteName" value={currentSettingsForm.siteName || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="siteTagline" className="text-right">Site Tagline</Label>
+                    <Textarea id="siteTagline" name="siteTagline" value={currentSettingsForm.siteTagline || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Settings</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm text-muted-foreground">Current Site Name: <span className="font-semibold text-foreground">{siteSettings.siteName}</span></p>
+              <p className="text-sm text-muted-foreground">Current Tagline: <span className="font-semibold text-foreground">{siteSettings.siteTagline}</span></p>
+            </div>
           </CardContent>
         </Card>
 
@@ -282,7 +344,7 @@ export default function AdminPage() {
       </div>
 
        <p className="text-sm text-muted-foreground text-center pt-4">
-        Product management (add, edit, delete) is now interactive. Changes are in-memory and will reset on server restart.
+        Product management and site settings (Site Name, Tagline) are now interactive. Changes are in-memory and will reset on server restart.
       </p>
     </div>
   );
