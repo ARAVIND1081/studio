@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCart } from '@/context/CartContext';
@@ -9,10 +10,12 @@ import { Trash2, ShoppingBag, Minus, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getItemCount } = useCart();
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -28,12 +31,7 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    // Mock checkout
-    toast({
-      title: "Checkout Initiated!",
-      description: "This is a mock checkout. Your order would proceed from here.",
-    });
-    // clearCart(); // Optionally clear cart after mock checkout
+    router.push('/checkout');
   };
 
   if (cartItems.length === 0) {
