@@ -388,25 +388,25 @@ export default function AdminPage() {
                     Fill in the details for the new product. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleAddNewProduct} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="add-name" className="text-right">Name</Label>
-                    <Input id="add-name" name="name" value={newProductForm.name} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
+                <form onSubmit={handleAddNewProduct} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="add-name">Name</Label>
+                    <Input id="add-name" name="name" value={newProductForm.name} onChange={(e) => handleInputChange(e, 'add')} required />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="add-description" className="text-right">Description</Label>
-                    <Textarea id="add-description" name="description" value={newProductForm.description} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" />
+                  <div className="space-y-1">
+                    <Label htmlFor="add-description">Description</Label>
+                    <Textarea id="add-description" name="description" value={newProductForm.description} onChange={(e) => handleInputChange(e, 'add')} />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="add-price" className="text-right">Price</Label>
-                    <Input id="add-price" name="price" type="number" value={newProductForm.price} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required min="0.01" step="0.01" />
+                  <div className="space-y-1">
+                    <Label htmlFor="add-price">Price</Label>
+                    <Input id="add-price" name="price" type="number" value={newProductForm.price} onChange={(e) => handleInputChange(e, 'add')} required min="0.01" step="0.01" />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="add-category" className="text-right">Category</Label>
-                    <Input id="add-category" name="category" value={newProductForm.category} onChange={(e) => handleInputChange(e, 'add')} className="col-span-3" required />
+                  <div className="space-y-1">
+                    <Label htmlFor="add-category">Category</Label>
+                    <Input id="add-category" name="category" value={newProductForm.category} onChange={(e) => handleInputChange(e, 'add')} required />
                   </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="add-images" className="text-right pt-2 flex items-center">
+                  <div className="space-y-1">
+                    <Label htmlFor="add-images" className="flex items-center">
                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images
                     </Label>
                     <Input 
@@ -415,11 +415,10 @@ export default function AdminPage() {
                         accept="image/*"
                         multiple
                         onChange={(e) => handleImageFilesChange(e, 'add')} 
-                        className="col-span-3" 
                     />
                   </div>
                   {newProductForm.imagePreviews.length > 0 && (
-                    <div className="col-span-4 grid grid-cols-3 gap-2 mt-2 pl-[25%]">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
                       {newProductForm.imagePreviews.map((previewSrc, index) => (
                         <div key={index} className="relative group">
                           <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
@@ -430,7 +429,7 @@ export default function AdminPage() {
                       ))}
                     </div>
                   )}
-                  <DialogFooter>
+                  <DialogFooter className="pt-4">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Product</Button>
                   </DialogFooter>
                 </form>
@@ -445,25 +444,25 @@ export default function AdminPage() {
                     Update the details for the product. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdateProduct} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-name" className="text-right">Name</Label>
-                    <Input id="edit-name" name="name" value={currentProductForm.name || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
+                <form onSubmit={handleUpdateProduct} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input id="edit-name" name="name" value={currentProductForm.name || ''} onChange={(e) => handleInputChange(e, 'edit')} required />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-description" className="text-right">Description</Label>
-                    <Textarea id="edit-description" name="description" value={currentProductForm.description || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" />
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea id="edit-description" name="description" value={currentProductForm.description || ''} onChange={(e) => handleInputChange(e, 'edit')} />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-price" className="text-right">Price</Label>
-                    <Input id="edit-price" name="price" type="number" value={currentProductForm.price || 0} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required min="0.01" step="0.01" />
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-price">Price</Label>
+                    <Input id="edit-price" name="price" type="number" value={currentProductForm.price || 0} onChange={(e) => handleInputChange(e, 'edit')} required min="0.01" step="0.01" />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-category" className="text-right">Category</Label>
-                    <Input id="edit-category" name="category" value={currentProductForm.category || ''} onChange={(e) => handleInputChange(e, 'edit')} className="col-span-3" required />
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-category">Category</Label>
+                    <Input id="edit-category" name="category" value={currentProductForm.category || ''} onChange={(e) => handleInputChange(e, 'edit')} required />
                   </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                     <Label htmlFor="edit-images" className="text-right pt-2 flex items-center">
+                  <div className="space-y-1">
+                     <Label htmlFor="edit-images" className="flex items-center">
                        <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images
                      </Label>
                     <Input 
@@ -471,13 +470,12 @@ export default function AdminPage() {
                         type="file"
                         accept="image/*"
                         multiple
-                        onChange={(e) => handleImageFilesChange(e, 'edit')} 
-                        className="col-span-3"
+                        onChange={(e) => handleImageFilesChange(e, 'edit')}
                         placeholder="Upload new to replace existing"
                     />
                   </div>
                   {(currentProductForm.imagePreviews || []).length > 0 && (
-                    <div className="col-span-4 grid grid-cols-3 gap-2 mt-2 pl-[25%]">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
                       {(currentProductForm.imagePreviews || []).map((previewSrc, index) => (
                         <div key={index} className="relative group">
                           <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
@@ -488,7 +486,7 @@ export default function AdminPage() {
                       ))}
                     </div>
                   )}
-                  <DialogFooter>
+                  <DialogFooter className="pt-4">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Changes</Button>
                   </DialogFooter>
                 </form>
@@ -543,16 +541,16 @@ export default function AdminPage() {
                     Update your site's name and tagline. Click save when you're done.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdateSiteSettings} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="siteName" className="text-right">Site Name</Label>
-                    <Input id="siteName" name="siteName" value={currentSettingsForm.siteName || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
+                <form onSubmit={handleUpdateSiteSettings} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="siteName">Site Name</Label>
+                    <Input id="siteName" name="siteName" value={currentSettingsForm.siteName || ''} onChange={(e) => handleInputChange(e, 'settings')} required />
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="siteTagline" className="text-right">Site Tagline</Label>
-                    <Textarea id="siteTagline" name="siteTagline" value={currentSettingsForm.siteTagline || ''} onChange={(e) => handleInputChange(e, 'settings')} className="col-span-3" required />
+                  <div className="space-y-1">
+                    <Label htmlFor="siteTagline">Site Tagline</Label>
+                    <Textarea id="siteTagline" name="siteTagline" value={currentSettingsForm.siteTagline || ''} onChange={(e) => handleInputChange(e, 'settings')} required />
                   </div>
-                  <DialogFooter className="mt-2">
+                  <DialogFooter className="pt-4">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Settings</Button>
                   </DialogFooter>
                 </form>
@@ -588,101 +586,98 @@ export default function AdminPage() {
                     Update key informational text displayed on various pages and contact details.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleUpdatePageContent} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                    <div>
+                <form onSubmit={handleUpdatePageContent} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                    <div className="space-y-1">
                         <Label htmlFor="contentManagementInfoText">Admin Dashboard Info Text</Label>
                         <Textarea
                             id="contentManagementInfoText"
                             name="contentManagementInfoText"
                             value={editableContentForm.contentManagementInfoText || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1"
+                            className="min-h-[80px]"
                             placeholder="Enter informational text for the Admin Dashboard..."
                             required
                         />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                         <Label htmlFor="homePageNoProductsTitle">Home Page: "No Products" Title</Label>
                         <Input
                             id="homePageNoProductsTitle"
                             name="homePageNoProductsTitle"
                             value={editableContentForm.homePageNoProductsTitle || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1"
                             placeholder="Title for no products alert..."
                             required
                         />
                     </div>
-                     <div>
+                     <div className="space-y-1">
                         <Label htmlFor="homePageNoProductsDescription">Home Page: "No Products" Description</Label>
                         <Textarea
                             id="homePageNoProductsDescription"
                             name="homePageNoProductsDescription"
                             value={editableContentForm.homePageNoProductsDescription || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1"
+                            className="min-h-[80px]"
                             placeholder="Description for no products alert..."
                             required
                         />
                     </div>
-                     <div>
+                     <div className="space-y-1">
                         <Label htmlFor="contactPageTitle">Contact Page: Title</Label>
                         <Input
                             id="contactPageTitle"
                             name="contactPageTitle"
                             value={editableContentForm.contactPageTitle || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1"
                             placeholder="Main title for Contact Us page..."
                             required
                         />
                     </div>
-                     <div>
+                     <div className="space-y-1">
                         <Label htmlFor="contactPageDescription">Contact Page: Description</Label>
                         <Textarea
                             id="contactPageDescription"
                             name="contactPageDescription"
                             value={editableContentForm.contactPageDescription || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1"
+                            className="min-h-[80px]"
                             placeholder="Introductory description for Contact Us page..."
                             required
                         />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                         <Label htmlFor="contactPagePhoneNumber">Contact Page: Phone Number</Label>
                         <Input
                             id="contactPagePhoneNumber"
                             name="contactPagePhoneNumber"
                             value={editableContentForm.contactPagePhoneNumber || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="mt-1"
                             placeholder="e.g., +1-555-123-4567"
                         />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                         <Label htmlFor="contactPageAddress">Contact Page: Address</Label>
                         <Textarea
                             id="contactPageAddress"
                             name="contactPageAddress"
                             value={editableContentForm.contactPageAddress || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[60px] mt-1"
+                            className="min-h-[60px]"
                             placeholder="e.g., 123 Main St, Anytown, USA"
                         />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                         <Label htmlFor="contactPageAdditionalInfo">Contact Page: Additional Info</Label>
                         <Textarea
                             id="contactPageAdditionalInfo"
                             name="contactPageAdditionalInfo"
                             value={editableContentForm.contactPageAdditionalInfo || ''}
                             onChange={(e) => handleInputChange(e, 'content')}
-                            className="min-h-[80px] mt-1"
+                            className="min-h-[80px]"
                             placeholder="e.g., Office hours, specific directions..."
                         />
                     </div>
-                  <DialogFooter className="mt-2">
+                  <DialogFooter className="pt-4">
                     <Button type="submit" className="bg-primary hover:bg-accent hover:text-accent-foreground">Save Page Content</Button>
                   </DialogFooter>
                 </form>
