@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
-import { MapPin, Package, CreditCard, Phone, CalendarDays, Lock } from "lucide-react";
+import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark } from "lucide-react";
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -36,45 +36,11 @@ const shippingAddressSchema = z.object({
   phoneNumber: z.string().min(10, "Valid phone number is required").regex(/^\+?[0-9\s-()]+$/, "Invalid phone number format"),
 });
 
-const paymentDetailsSchema = z.object({
-  cardholderName: z.string().min(2, "Cardholder name is required"),
-  cardNumber: z.string()
-    .min(13, "Card number must be between 13 and 19 digits")
-    .max(19, "Card number must be between 13 and 19 digits")
-    .regex(/^\d+$/, "Card number must be all digits")
-    .refine(value => { // Basic Luhn algorithm check (optional, but good for UX)
-        let sum = 0;
-        let shouldDouble = false;
-        for (let i = value.length - 1; i >= 0; i--) {
-            let digit = parseInt(value.charAt(i));
-            if (shouldDouble) {
-                if ((digit *= 2) > 9) digit -= 9;
-            }
-            sum += digit;
-            shouldDouble = !shouldDouble;
-        }
-        return (sum % 10) === 0;
-    }, "Invalid card number"),
-  expiryDate: z.string()
-    .regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry date must be MM/YY format (e.g., 03/25)")
-    .refine(val => {
-      const [month, yearSuffix] = val.split('/');
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1; // 1-indexed month
-      const inputYear = parseInt(`20${yearSuffix}`, 10);
-      const inputMonth = parseInt(month, 10);
-
-      if (inputYear < currentYear) return false;
-      if (inputYear === currentYear && inputMonth < currentMonth) return false;
-      return true;
-    }, "Card is expired or invalid date"),
-  cvv: z.string().min(3, "CVV must be 3 or 4 digits").max(4, "CVV must be 3 or 4 digits").regex(/^\d+$/, "CVV must be all digits"),
-});
-
+// Updated schema: removed paymentDetails, added paymentMethod
 const checkoutFormSchema = z.object({
   shippingAddress: shippingAddressSchema,
   shippingMethod: z.string().min(1, "Please select a shipping method"),
-  paymentDetails: paymentDetailsSchema,
+  paymentMethod: z.string().min(1, "Please select a payment method"),
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
@@ -83,6 +49,13 @@ const shippingOptions = [
   { id: 'standard', label: 'Standard Shipping (5-7 business days)', price: 0, description: 'Reliable and free' },
   { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 10.99, description: 'Faster delivery' },
   { id: 'priority', label: 'Priority Shipping (1 business day)', price: 19.99, description: 'Get it tomorrow' },
+];
+
+const paymentMethods = [
+    { id: 'card', label: 'Credit or Debit Card', icon: CreditCard },
+    { id: 'upi', label: 'UPI', icon: Smartphone },
+    { id: 'cod', label: 'Cash on Delivery', icon: HandCoins },
+    { id: 'netbanking', label: 'Net Banking', icon: Landmark },
 ];
 
 export default function CheckoutPage() {
@@ -110,17 +83,12 @@ export default function CheckoutPage() {
         phoneNumber: "",
       },
       shippingMethod: shippingOptions[0].id,
-      paymentDetails: {
-        cardholderName: "",
-        cardNumber: "",
-        expiryDate: "",
-        cvv: "",
-      },
+      paymentMethod: "", // Initialize paymentMethod
     },
   });
 
   const itemsSubtotal = getCartTotal();
-  const mockTaxes = itemsSubtotal * 0.07; // Calculate mock taxes
+  const mockTaxes = itemsSubtotal * 0.07; 
   const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
 
 
@@ -133,16 +101,21 @@ export default function CheckoutPage() {
 
   const onSubmit = (data: CheckoutFormValues) => {
     console.log("Checkout data:", data);
+    // Here, you would typically handle the chosen paymentMethod
+    // For 'card', you might show another modal/step for card details.
+    // For 'upi', you might generate a QR code or redirect.
+    // For 'cod', no further payment action needed here.
+    // For 'netbanking', redirect to a bank page.
+    // This is a UI prototype, so we'll just log and proceed.
     toast({
       title: "Order Placed Successfully!",
-      description: "Thank you for your purchase. Your order is being processed.",
+      description: `Thank you for your purchase. Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}. Your order is being processed.`,
     });
     clearCart();
     router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${getItemCount()}`);
   };
 
   if (!hasMounted) {
-    // Render a consistent loading state or what the server would output (empty cart state)
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Loading checkout...</p>
@@ -151,7 +124,6 @@ export default function CheckoutPage() {
   }
 
   if (cartItems.length === 0) {
-    // This state will be reached after mounting if cart is empty, useEffect above will redirect
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Redirecting to cart...</p>
@@ -275,42 +247,36 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
-            {/* Payment Information */}
+            {/* Payment Method Selection */}
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="text-2xl font-headline text-primary flex items-center"><CreditCard className="mr-2 h-6 w-6 text-accent" /> Payment Information</CardTitle>
+                <CardTitle className="text-2xl font-headline text-primary flex items-center"><CreditCard className="mr-2 h-6 w-6 text-accent" /> Select Payment Method</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField control={form.control} name="paymentDetails.cardholderName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cardholder Name</FormLabel>
-                    <FormControl><Input placeholder="John M Doe" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="paymentDetails.cardNumber" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Card Number</FormLabel>
-                    <FormControl><Input placeholder="•••• •••• •••• ••••" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="paymentDetails.expiryDate" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><CalendarDays className="mr-2 h-4 w-4 text-accent" />Expiry Date</FormLabel>
-                      <FormControl><Input placeholder="MM/YY" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="paymentDetails.cvv" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><Lock className="mr-2 h-4 w-4 text-accent" />CVV</FormLabel>
-                      <FormControl><Input placeholder="123" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
+              <CardContent>
+                <Controller
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      className="space-y-3"
+                    >
+                      {paymentMethods.map((method) => (
+                        <FormItem key={method.id} className="flex items-center space-x-3 p-3 border rounded-md hover:border-accent transition-colors">
+                          <FormControl>
+                            <RadioGroupItem value={method.id} />
+                          </FormControl>
+                          <FormLabel className="font-normal flex-grow cursor-pointer flex items-center">
+                            <method.icon className="mr-3 h-5 w-5 text-muted-foreground" />
+                            {method.label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                    </RadioGroup>
+                  )}
+                />
+                <FormMessage>{form.formState.errors.paymentMethod?.message}</FormMessage>
               </CardContent>
             </Card>
           </div>
@@ -326,7 +292,7 @@ export default function CheckoutPage() {
                     {cartItems.map(item => (
                         <div key={item.product.id} className="flex items-center gap-3">
                             <div className="relative w-16 h-16 rounded-md overflow-hidden shrink-0">
-                            <Image src={item.product.imageUrl} alt={item.product.name} layout="fill" objectFit="cover" data-ai-hint="product item" />
+                            <Image src={item.product.imageUrl} alt={item.product.name} layout="fill" objectFit="cover" data-ai-hint="product item"/>
                             </div>
                             <div className="flex-grow">
                             <p className="text-sm font-medium truncate">{item.product.name}</p>
@@ -369,5 +335,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
