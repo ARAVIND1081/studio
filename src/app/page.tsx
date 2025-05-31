@@ -78,7 +78,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      <aside className="w-full lg:w-1/4 xl:w-1/5">
+      <aside className="w-full lg:w-1/4 xl:w-1/5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
         <ProductFilters onFilterChange={setFilters} initialFilters={filters} />
       </aside>
       <section className="w-full lg:w-3/4 xl:w-4/5">
