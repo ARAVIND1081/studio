@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext'; // Import useAuth
-import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
+import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock, Loader2 } from "lucide-react";
 import { addOrder, type OrderCreateInput } from "@/lib/data";
 import type { ShippingAddress, OrderItem } from "@/types";
 
@@ -130,6 +130,7 @@ export default function CheckoutPage() {
   const { cartItems, getCartTotal, clearCart } = useCart();
   const { currentUser } = useAuth(); 
   const [selectedShippingPrice, setSelectedShippingPrice] = useState(FIXED_SHIPPING_COST);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
@@ -171,57 +172,85 @@ export default function CheckoutPage() {
   const watchedUpiProvider = form.watch("upiProvider");
 
   useEffect(() => {
-    if (hasMounted && cartItems.length === 0) {
+    if (hasMounted && cartItems.length === 0 && !isProcessingPayment) {
       toast({ title: "Your cart is empty", description: "Please add items to your cart before proceeding to checkout.", variant: "destructive" });
       router.push('/cart');
     }
-  }, [hasMounted, cartItems, router, toast]);
+  }, [hasMounted, cartItems, router, toast, isProcessingPayment]);
 
    useEffect(() => {
     setSelectedShippingPrice(FIXED_SHIPPING_COST);
   }, [form.watch("shippingMethod")]);
 
 
-  const onSubmit = (data: CheckoutFormValues) => {
-    let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
-    if (data.paymentMethod === 'card' && data.cardDetails) {
-        paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
-    } else if (data.paymentMethod === 'upi') {
-        const providerLabel = upiProviders.find(up => up.id === data.upiProvider)?.label || data.upiProvider;
-        paymentDetailsDescription += ` Provider: ${providerLabel}.`;
-        if (data.upiProvider === 'other_upi' && data.upiId) {
-            paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
-        }
-    } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
-        paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
-    } else if (data.paymentMethod === 'cod') {
-        paymentDetailsDescription += ` To be paid on delivery.`
+  const onSubmit = async (data: CheckoutFormValues) => {
+    setIsProcessingPayment(true);
+
+    // Simulate payment processing delay
+    await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 second delay
+
+    // Simulate payment success/failure (e.g., 90% success rate for demo)
+    const paymentSuccessful = Math.random() > 0.1 || data.paymentMethod === 'cod'; // COD always successful for demo
+
+    if (paymentSuccessful) {
+      let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
+      if (data.paymentMethod === 'card' && data.cardDetails) {
+          paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
+      } else if (data.paymentMethod === 'upi') {
+          const providerLabel = upiProviders.find(up => up.id === data.upiProvider)?.label || data.upiProvider;
+          paymentDetailsDescription += ` Provider: ${providerLabel}.`;
+          if (data.upiProvider === 'other_upi' && data.upiId) {
+              paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+          }
+      } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
+          paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
+      } else if (data.paymentMethod === 'cod') {
+          paymentDetailsDescription += ` To be paid on delivery.`
+      }
+
+      const orderToCreate: OrderCreateInput = {
+          customerId: currentUser?.id, 
+          customerName: data.shippingAddress.fullName,
+          shippingAddress: data.shippingAddress as ShippingAddress,
+          items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
+          shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
+          shippingCost: selectedShippingPrice,
+          paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
+          paymentDetails: paymentDetailsDescription,
+          subtotal: itemsSubtotal,
+          taxes: taxes, 
+          totalAmount: finalOrderTotal,
+      };
+
+      try {
+        const newOrder = addOrder(orderToCreate);
+        toast({
+          title: "Order Placed Successfully!",
+          description: `Thank you, ${newOrder.customerName}! Your order #${newOrder.orderNumber} is being processed. ${paymentDetailsDescription}`,
+        });
+        
+        const itemCountBeforeClear = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        clearCart();
+        router.push(`/order-confirmation?orderNumber=${newOrder.orderNumber}&orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCountBeforeClear}`);
+      } catch (error) {
+        console.error("Error placing order:", error);
+        toast({
+            title: "Order Placement Failed",
+            description: "There was an issue placing your order. Please try again.",
+            variant: "destructive",
+        });
+      } finally {
+        setIsProcessingPayment(false);
+      }
+    } else {
+      // Payment failed
+      toast({
+        title: "Payment Failed",
+        description: "Your payment could not be processed. Please check your details or try a different payment method.",
+        variant: "destructive",
+      });
+      setIsProcessingPayment(false);
     }
-
-    const orderToCreate: OrderCreateInput = {
-        customerId: currentUser?.id, 
-        customerName: data.shippingAddress.fullName,
-        shippingAddress: data.shippingAddress as ShippingAddress,
-        items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
-        shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
-        shippingCost: selectedShippingPrice,
-        paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
-        paymentDetails: paymentDetailsDescription,
-        subtotal: itemsSubtotal, // Tax-inclusive subtotal
-        taxes: taxes, // 0, as tax is included in item prices
-        totalAmount: finalOrderTotal,
-    };
-
-    const newOrder = addOrder(orderToCreate);
-
-    toast({
-      title: "Order Placed Successfully!",
-      description: `Thank you, ${newOrder.customerName}! Your order #${newOrder.orderNumber} is being processed. ${paymentDetailsDescription}`,
-    });
-    
-    const itemCountBeforeClear = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-    clearCart();
-    router.push(`/order-confirmation?orderNumber=${newOrder.orderNumber}&orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCountBeforeClear}`);
   };
 
   if (!hasMounted) {
@@ -246,7 +275,7 @@ export default function CheckoutPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid lg:grid-cols-3 gap-8">
           {/* Left Column: Forms */}
-          <div className="lg:col-span-2 space-y-8">
+          <fieldset disabled={isProcessingPayment} className="lg:col-span-2 space-y-8">
             {/* Shipping Address */}
             <Card className="shadow-lg">
               <CardHeader>
@@ -510,7 +539,6 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-
                 {/* Info for Cash on Delivery */}
                 {watchedPaymentMethod === 'cod' && (
                   <div className="pt-4 border-t mt-4">
@@ -520,7 +548,7 @@ export default function CheckoutPage() {
 
               </CardContent>
             </Card>
-          </div>
+          </fieldset>
 
           {/* Right Column: Order Summary */}
           <div className="lg:col-span-1">
@@ -553,7 +581,6 @@ export default function CheckoutPage() {
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">₹{selectedShippingPrice.toFixed(2)}</span>
                   </div>
-                  {/* Taxes line removed as they are included in product prices */}
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
@@ -562,8 +589,15 @@ export default function CheckoutPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" size="lg" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground text-lg py-3">
-                  Place Your Order
+                <Button type="submit" size="lg" className="w-full bg-primary hover:bg-accent hover:text-accent-foreground text-lg py-3" disabled={isProcessingPayment}>
+                  {isProcessingPayment ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing Payment...
+                    </>
+                  ) : (
+                    "Place Your Order"
+                  )}
                 </Button>
               </CardFooter>
             </Card>
@@ -573,3 +607,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
