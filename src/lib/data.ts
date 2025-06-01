@@ -23,12 +23,10 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
       if (storedValue === 'null' && defaultValue === null) {
         return null as T;
       }
-      // If parsing fails, it will be caught, and defaultValue will be used and saved.
       const parsedValue = JSON.parse(storedValue) as T;
-      // If defaultValue is an array and parsedValue is not, or vice-versa,
-      // it might indicate corrupted data not matching the expected type.
-      // This simple check helps, but more complex validation might be needed for production.
-      if (Array.isArray(defaultValue) !== Array.isArray(parsedValue)) {
+      // Refined type check: only perform array/object check if defaultValue itself is not null.
+      // If defaultValue is null, we trust JSON.parse to either succeed or fail appropriately for type T.
+      if (defaultValue !== null && (Array.isArray(defaultValue) !== Array.isArray(parsedValue))) {
         console.warn(`Type mismatch for ${key} in localStorage. Expected ${Array.isArray(defaultValue) ? 'array' : 'object'}, got ${Array.isArray(parsedValue) ? 'array' : 'object'}. Resetting to default.`);
         throw new Error('Type mismatch'); // Force catch block to reset with default
       }
@@ -36,10 +34,11 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
     }
   } catch (error) {
     console.error(`Error loading or parsing ${key} from localStorage:`, error);
-    localStorage.removeItem(key);
+    localStorage.removeItem(key); // Clear corrupted data
   }
   // If not found, error during parsing, or type mismatch:
   // Save the default value to initialize localStorage for next time.
+  // This only happens if defaultValue was not returned earlier (e.g. server-side, or successful parse)
   saveToLocalStorage(key, defaultValue);
   return defaultValue;
 }
@@ -89,7 +88,6 @@ function mapProductForConsistency(p: any): Product {
 
 // --- Product Data Initialization ---
 const DEFAULT_PRODUCTS_SEED: Product[] = [
-  // ... (original 8 products) ...
   {
     id: '1', name: 'Elegant Smartwatch X1', description: 'A fusion of classic design and modern technology. Stay connected in style.', price: 29999.00, category: 'Electronics', imageUrl: 'https://placehold.co/800x600.png', images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'], rating: 4.8, specifications: [ { name: 'Display', value: '1.4" AMOLED' }, { name: 'Battery Life', value: '7 days' }, { name: 'Water Resistance', value: '5 ATM' }, ], reviews: sampleReviews.map(r => ({...r})),
   }, {
@@ -107,7 +105,6 @@ const DEFAULT_PRODUCTS_SEED: Product[] = [
   }, {
     id: '8', name: 'Velvet Throw Pillow Set', description: 'Add a touch of luxury to your living space with these plush velvet pillows.', price: 5625.00, category: 'Home Goods', imageUrl: 'https://placehold.co/600x400.png', images: ['https://placehold.co/600x400.png'], rating: 4.3, reviews: [], specifications: [],
   },
-  // ... (50 additional products) ...
   ...Array.from({ length: 50 }).map((_, index) => {
     const categoryIndex = index % CATEGORIES.length;
     const category = CATEGORIES[categoryIndex];
@@ -143,11 +140,19 @@ let _productsData: Product[] | null = null;
 function getProductsDataStore(): Product[] {
   if (_productsData === null) {
     const loadedProducts = loadFromLocalStorage<Product[] | null>(PRODUCTS_STORAGE_KEY, null);
-    if (loadedProducts && Array.isArray(loadedProducts) && loadedProducts.length >= DEFAULT_PRODUCTS_SEED.length) {
-      _productsData = loadedProducts.map(p => mapProductForConsistency(p));
+
+    if (loadedProducts && Array.isArray(loadedProducts)) {
+      if (loadedProducts.length < DEFAULT_PRODUCTS_SEED.length && typeof window !== 'undefined') {
+        _productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p));
+        saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
+      } else {
+        _productsData = loadedProducts.map(p => mapProductForConsistency(p));
+      }
     } else {
-      _productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p)); // Use a deep copy of the full seed
-      saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData); // "Upgrade" or initialize localStorage
+      _productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p));
+      if (typeof window !== 'undefined') {
+        saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
+      }
     }
   }
   return _productsData;
@@ -228,7 +233,7 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 };
 
 export const deleteProduct = (id: string): boolean => {
-  const store = getProductsDataStore();
+  let store = getProductsDataStore(); // Ensure data is loaded
   const initialLength = store.length;
   _productsData = store.filter(p => p.id !== id); // Directly update the in-memory store
   const success = _productsData.length < initialLength;
@@ -289,13 +294,14 @@ let _siteSettingsData: SiteSettings | null = null;
 function getSiteSettingsStore(): SiteSettings {
   if (_siteSettingsData === null) {
     const loadedSettings = loadFromLocalStorage<SiteSettings | null>(SETTINGS_STORAGE_KEY, null);
-    if (loadedSettings) {
+    if (loadedSettings && typeof loadedSettings === 'object' && !Array.isArray(loadedSettings)) {
       _siteSettingsData = { ...DEFAULT_SITE_SETTINGS, ...loadedSettings };
     } else {
       _siteSettingsData = { ...DEFAULT_SITE_SETTINGS };
     }
-    // Ensure localStorage has the full, potentially merged, structure
-    saveToLocalStorage(SETTINGS_STORAGE_KEY, _siteSettingsData);
+    if (typeof window !== 'undefined') {
+      saveToLocalStorage(SETTINGS_STORAGE_KEY, _siteSettingsData);
+    }
   }
   return _siteSettingsData;
 }
@@ -306,8 +312,8 @@ export const getSiteSettings = (): SiteSettings => {
 };
 
 export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSettings => {
-  let store = getSiteSettingsStore(); // Ensure it's initialized
-  _siteSettingsData = { ...store, ...newSettings }; // Update the in-memory store
+  let store = getSiteSettingsStore(); 
+  _siteSettingsData = { ...store, ...newSettings }; 
   saveToLocalStorage(SETTINGS_STORAGE_KEY, _siteSettingsData);
   return { ..._siteSettingsData };
 };
@@ -319,7 +325,7 @@ const DEFAULT_USERS_DATA: User[] = [
 ].map(u => ({...u}));
 
 let _usersData: User[] | null = null;
-let _newUserIdCounter = 1; // Used for generating fallback names
+let _newUserIdCounter = DEFAULT_USERS_DATA.length + 1; 
 
 function getUsersDataStore(): User[] {
   if (_usersData === null) {
@@ -333,14 +339,16 @@ function getUsersDataStore(): User[] {
           needsSave = true;
         }
       });
-      if (needsSave) {
+      if (needsSave && typeof window !== 'undefined') {
         saveToLocalStorage(USERS_STORAGE_KEY, _usersData);
       }
     } else {
       _usersData = DEFAULT_USERS_DATA.map(u => ({...u}));
-      saveToLocalStorage(USERS_STORAGE_KEY, _usersData);
+      if (typeof window !== 'undefined') {
+        saveToLocalStorage(USERS_STORAGE_KEY, _usersData);
+      }
     }
-    _newUserIdCounter = _usersData.length + 1;
+    _newUserIdCounter = (_usersData.length > 0 ? Math.max(..._usersData.map(u => parseInt(u.id.replace('user','').split('_')[0]) || 0)) : 0) + 1;
   }
   return _usersData;
 }
@@ -358,9 +366,13 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
   if (store.find(user => user.email === userInput.email)) {
     return { error: 'Account already exists with this email.' };
   }
-  const newGeneratedId = `user${store.length + 1}_${Date.now()}`;
-  const newUser: User = { ...userInput, id: newGeneratedId, name: userInput.name || `User ${_newUserIdCounter.toString().slice(-4)}` };
-  _newUserIdCounter++;
+  const numericIds = store.map(u => parseInt(u.id.replace('user','').split('_')[0])).filter(id => !isNaN(id));
+  const nextIdNum = numericIds.length > 0 ? Math.max(0, ...numericIds) + 1 : 1;
+  _newUserIdCounter = Math.max(_newUserIdCounter, nextIdNum);
+
+  const newGeneratedId = `user${_newUserIdCounter}_${Date.now()}`;
+  const newUser: User = { ...userInput, id: newGeneratedId, name: userInput.name || `User ${_newUserIdCounter}` };
+  _newUserIdCounter++; 
   store.push(newUser);
   saveToLocalStorage(USERS_STORAGE_KEY, store);
   return { ...newUser };
@@ -382,8 +394,6 @@ let _ordersData: Order[] | null = null;
 function getOrdersDataStore(): Order[] {
   if (_ordersData === null) {
     _ordersData = loadFromLocalStorage<Order[]>(ORDERS_STORAGE_KEY, DEFAULT_ORDERS_SEED.map(o => ({...o})));
-    // Ensure it's an array; loadFromLocalStorage should handle this by returning default if corrupt.
-    // If default is empty and local storage was empty/corrupt, it will save an empty array.
   }
   return _ordersData;
 }
@@ -455,15 +465,31 @@ export function _resetAllData_USE_WITH_CAUTION() {
     localStorage.removeItem(USERS_STORAGE_KEY);
     localStorage.removeItem(ORDERS_STORAGE_KEY);
     
-    // Reset in-memory stores to null to force re-initialization on next access
     _productsData = null;
     _siteSettingsData = null;
     _usersData = null;
     _ordersData = null;
     
     console.warn("All ShopSphere localStorage data has been cleared and in-memory stores reset. Please refresh or navigate to re-initialize with defaults.");
-    // No need to call initialize functions here, the getters will handle it.
   } else {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+
+// Initialize all data stores on first access if not already initialized (e.g. by a page load)
+// This ensures that even if no specific getter is called, the stores are ready.
+// However, the individual getters (getProductsDataStore, etc.) already handle this.
+// Calling them here is more of an eager initialization, which might not be strictly necessary
+// with the current lazy-loading pattern in each getter.
+// For robustness and to ensure `_resetAllData_USE_WITH_CAUTION` can correctly nullify for reload,
+// we should rely on the getters' internal checks.
+
+// This block below is commented out as the lazy initialization within each getter is preferred.
+/*
+if (typeof window !== 'undefined') {
+  getProductsDataStore();
+  getSiteSettingsStore();
+  getUsersDataStore();
+  getOrdersDataStore();
+}
+*/
