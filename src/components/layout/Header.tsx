@@ -71,9 +71,9 @@ export function Header() {
 
           {mounted && currentUser ? (
             <>
-              <span className="text-foreground flex items-center px-1 md:px-0 text-sm sm:text-base">
-                <UserCircle2 className="mr-1 h-5 w-5 text-accent" />
-                {currentUser.name || currentUser.email}
+              <span className="text-foreground flex items-center px-1 md:px-0 text-sm sm:text-base overflow-hidden">
+                <UserCircle2 className="mr-1 h-5 w-5 text-accent flex-shrink-0" />
+                <span className="truncate block max-w-[10ch] sm:max-w-[15ch] lg:max-w-none">{currentUser.name || currentUser.email}</span>
               </span>
               <Button variant="outline" size="sm" onClick={logout} className="hover:border-destructive hover:text-destructive text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1.5">
                 <LogOut className="mr-1 h-4 w-4" /> Logout

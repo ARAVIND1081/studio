@@ -82,7 +82,7 @@ export default function CartPage() {
                   value={item.quantity}
                   onChange={(e) => handleQuantityChange(item.product.id, parseInt(e.target.value))}
                   min="1"
-                  className="w-16 h-8 text-center"
+                  className="w-14 h-8 text-center"
                 />
                 <Button variant="outline" size="icon" onClick={() => handleQuantityChange(item.product.id, item.quantity + 1)} className="h-8 w-8">
                   <Plus className="h-4 w-4" />
