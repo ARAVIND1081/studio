@@ -88,10 +88,12 @@ const checkoutFormSchema = z.object({
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>;
 
+const FIXED_SHIPPING_COST = 40.00;
+
 const shippingOptions = [
-  { id: 'standard', label: 'Standard Shipping (5-7 business days)', price: 0, description: 'Reliable and free' },
-  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: 150.00, description: 'Faster delivery' },
-  { id: 'priority', label: 'Priority Shipping (1 business day)', price: 300.00, description: 'Get it tomorrow' },
+  { id: 'standard', label: 'Standard Shipping (5-7 business days)', price: FIXED_SHIPPING_COST, description: 'Reliable delivery' },
+  { id: 'expedited', label: 'Expedited Shipping (2-3 business days)', price: FIXED_SHIPPING_COST, description: 'Faster delivery' },
+  { id: 'priority', label: 'Priority Shipping (1 business day)', price: FIXED_SHIPPING_COST, description: 'Get it quickly' },
 ];
 
 const paymentMethods = [
@@ -126,8 +128,8 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { cartItems, getCartTotal, clearCart } = useCart();
-  const { currentUser } = useAuth(); // Get currentUser
-  const [selectedShippingPrice, setSelectedShippingPrice] = useState(shippingOptions[0].price);
+  const { currentUser } = useAuth(); 
+  const [selectedShippingPrice, setSelectedShippingPrice] = useState(FIXED_SHIPPING_COST);
 
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
@@ -138,7 +140,7 @@ export default function CheckoutPage() {
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       shippingAddress: {
-        fullName: currentUser?.name || "", // Pre-fill name if user is logged in
+        fullName: currentUser?.name || "", 
         addressLine1: "",
         addressLine2: "",
         city: "",
@@ -175,6 +177,13 @@ export default function CheckoutPage() {
     }
   }, [hasMounted, cartItems, router, toast]);
 
+   useEffect(() => {
+    // Always ensure selectedShippingPrice is FIXED_SHIPPING_COST
+    // This simplifies logic as the price doesn't change with selection anymore
+    setSelectedShippingPrice(FIXED_SHIPPING_COST);
+  }, [form.watch("shippingMethod")]);
+
+
   const onSubmit = (data: CheckoutFormValues) => {
     let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
     if (data.paymentMethod === 'card' && data.cardDetails) {
@@ -192,12 +201,12 @@ export default function CheckoutPage() {
     }
 
     const orderToCreate: OrderCreateInput = {
-        customerId: currentUser?.id, // Add customerId if user is logged in
+        customerId: currentUser?.id, 
         customerName: data.shippingAddress.fullName,
         shippingAddress: data.shippingAddress as ShippingAddress,
         items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
         shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
-        shippingCost: selectedShippingPrice,
+        shippingCost: selectedShippingPrice, // This will be FIXED_SHIPPING_COST
         paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
         paymentDetails: paymentDetailsDescription,
         subtotal: itemsSubtotal,
@@ -322,8 +331,8 @@ export default function CheckoutPage() {
                     <RadioGroup
                       onValueChange={(value) => {
                         field.onChange(value);
-                        const selectedOption = shippingOptions.find(opt => opt.id === value);
-                        setSelectedShippingPrice(selectedOption ? selectedOption.price : 0);
+                        // selectedShippingPrice is now always FIXED_SHIPPING_COST
+                        // No need to update it based on selection here
                       }}
                       value={field.value}
                       className="space-y-3"
@@ -571,4 +580,4 @@ export default function CheckoutPage() {
   );
 }
 
-    
+      
