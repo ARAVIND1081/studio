@@ -186,28 +186,33 @@ export default function CheckoutPage() {
   const onSubmit = async (data: CheckoutFormValues) => {
     setIsProcessingPayment(true);
 
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 second delay
+    let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
+    if (data.paymentMethod === 'card' && data.cardDetails) {
+        paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
+    } else if (data.paymentMethod === 'upi') {
+        const providerLabel = upiProviders.find(up => up.id === data.upiProvider)?.label || data.upiProvider;
+        paymentDetailsDescription += ` Provider: ${providerLabel}.`;
+        if (data.upiProvider === 'other_upi' && data.upiId) {
+            paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
+        }
+    } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
+        paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
+    } else if (data.paymentMethod === 'cod') {
+        paymentDetailsDescription += ` To be paid on delivery.`;
+    }
 
-    // Simulate payment success/failure (e.g., 90% success rate for demo)
-    const paymentSuccessful = Math.random() > 0.1 || data.paymentMethod === 'cod'; // COD always successful for demo
+    let actualPaymentProcessedSuccessfully = false;
 
-    if (paymentSuccessful) {
-      let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
-      if (data.paymentMethod === 'card' && data.cardDetails) {
-          paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
-      } else if (data.paymentMethod === 'upi') {
-          const providerLabel = upiProviders.find(up => up.id === data.upiProvider)?.label || data.upiProvider;
-          paymentDetailsDescription += ` Provider: ${providerLabel}.`;
-          if (data.upiProvider === 'other_upi' && data.upiId) {
-              paymentDetailsDescription += ` UPI ID: ${data.upiId}.`;
-          }
-      } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
-          paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
-      } else if (data.paymentMethod === 'cod') {
-          paymentDetailsDescription += ` To be paid on delivery.`
-      }
+    if (data.paymentMethod === 'cod') {
+        actualPaymentProcessedSuccessfully = true;
+        // No delay for Cash on Delivery
+    } else {
+        // Simulate payment processing delay for other methods
+        await new Promise(resolve => setTimeout(resolve, 2500)); 
+        actualPaymentProcessedSuccessfully = Math.random() > 0.1; // Simulate success/failure for non-COD
+    }
 
+    if (actualPaymentProcessedSuccessfully) {
       const orderToCreate: OrderCreateInput = {
           customerId: currentUser?.id, 
           customerName: data.shippingAddress.fullName,
@@ -239,17 +244,16 @@ export default function CheckoutPage() {
             description: "There was an issue placing your order. Please try again.",
             variant: "destructive",
         });
-      } finally {
-        setIsProcessingPayment(false);
+        setIsProcessingPayment(false); // Re-enable form on order creation error
       }
     } else {
-      // Payment failed
+      // Payment failed (only for non-COD methods)
       toast({
         title: "Payment Failed",
         description: "Your payment could not be processed. Please check your details or try a different payment method.",
         variant: "destructive",
       });
-      setIsProcessingPayment(false);
+      setIsProcessingPayment(false); // Re-enable form on payment failure
     }
   };
 
