@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext'; // Import useAuth
 import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
 import { addOrder, type OrderCreateInput } from "@/lib/data";
 import type { ShippingAddress, OrderItem } from "@/types";
@@ -125,6 +126,7 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { cartItems, getCartTotal, clearCart } = useCart();
+  const { currentUser } = useAuth(); // Get currentUser
   const [selectedShippingPrice, setSelectedShippingPrice] = useState(shippingOptions[0].price);
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -136,7 +138,7 @@ export default function CheckoutPage() {
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       shippingAddress: {
-        fullName: "",
+        fullName: currentUser?.name || "", // Pre-fill name if user is logged in
         addressLine1: "",
         addressLine2: "",
         city: "",
@@ -190,17 +192,17 @@ export default function CheckoutPage() {
     }
 
     const orderToCreate: OrderCreateInput = {
+        customerId: currentUser?.id, // Add customerId if user is logged in
         customerName: data.shippingAddress.fullName,
-        shippingAddress: data.shippingAddress as ShippingAddress, // Assuming form type matches Order type
+        shippingAddress: data.shippingAddress as ShippingAddress,
         items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
         shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
         shippingCost: selectedShippingPrice,
         paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
-        paymentDetails: paymentDetailsDescription, // This is more of a summary
+        paymentDetails: paymentDetailsDescription,
         subtotal: itemsSubtotal,
         taxes: mockTaxes,
         totalAmount: finalOrderTotal,
-        // customerId: currentUser?.id, // If you have auth and want to link
     };
 
     const newOrder = addOrder(orderToCreate);
@@ -568,3 +570,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+    

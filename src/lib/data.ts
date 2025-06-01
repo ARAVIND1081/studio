@@ -13,11 +13,6 @@ const ORDERS_STORAGE_KEY = 'shopSphereOrders';
 
 
 // --- Helper function to load from localStorage ---
-// Returns defaultValue if:
-// 1. Running on server (window is undefined)
-// 2. localStorage key is not found on client
-// 3. localStorage data is corrupted on client (it removes the item and then returns default)
-// In cases 2 and 3 (on client), it will also save defaultValue to localStorage.
 function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') {
     return defaultValue;
@@ -25,6 +20,11 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   try {
     const storedValue = localStorage.getItem(key);
     if (storedValue) {
+      // Ensure that if 'null' was stored (as a string), it's parsed back to null.
+      // This is important if defaultValue could be null.
+      if (storedValue === 'null' && defaultValue === null) {
+        return null as T; // Type assertion needed here
+      }
       return JSON.parse(storedValue) as T;
     }
   } catch (error) {
@@ -42,17 +42,9 @@ function saveToLocalStorage<T>(key: string, value: T): void {
   if (typeof window === 'undefined') {
     return;
   }
-  // Special handling for null: if value is null, we store the string 'null'
-  // This is because JSON.stringify(null) is 'null'.
-  if (value === null) {
-    try {
-      localStorage.setItem(key, 'null');
-    } catch (error) {
-      console.error(`Error saving null to ${key} in localStorage:`, error);
-    }
-    return;
-  }
   try {
+    // If value is null, localStorage.setItem stores the string "null".
+    // JSON.stringify(null) also produces "null". So this is fine.
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
@@ -72,7 +64,7 @@ const sampleSpecifications: ProductSpecification[] = [
 ];
 
 // --- Product Data Initialization ---
-const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
+const DEFAULT_PRODUCTS_SEED: Product[] = [
   {
     id: '1',
     name: 'Elegant Smartwatch X1',
@@ -87,7 +79,7 @@ const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
       { name: 'Battery Life', value: '7 days' },
       { name: 'Water Resistance', value: '5 ATM' },
     ],
-    reviews: sampleReviews,
+    reviews: sampleReviews.map(r => ({...r})),
   },
   {
     id: '2',
@@ -98,8 +90,8 @@ const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
     imageUrl: 'https://placehold.co/800x600.png',
     images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?3'],
     rating: 4.9,
-    specifications: sampleSpecifications,
-    reviews: [sampleReviews[0]],
+    specifications: sampleSpecifications.map(s => ({...s})),
+    reviews: [sampleReviews[0]].map(r => ({...r})),
   },
   {
     id: '3',
@@ -114,7 +106,7 @@ const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
       { name: 'Capacity', value: '1.2 Liters' },
       { name: 'Material', value: 'Stainless Steel & Glass' },
     ],
-    reviews: [sampleReviews[1]],
+    reviews: [sampleReviews[1]].map(r => ({...r})),
   },
   {
     id: '4',
@@ -141,7 +133,7 @@ const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
     images: ['https://placehold.co/600x400.png'],
     rating: 5.0,
     specifications: [{ name: 'Volume', value: '100ml' }],
-    reviews: sampleReviews,
+    reviews: sampleReviews.map(r => ({...r})),
   },
   {
     id: '6',
@@ -196,72 +188,61 @@ const RAW_DEFAULT_PRODUCTS_SEED: Partial<Product>[] = [
     const defaultImg = 'https://placehold.co/600x400.png';
     return {
         id: `${9 + index}`,
-        name: `New ${category} Product ${productNumber}-${subIndex}`,
-        description: `This is a high-quality new ${category.toLowerCase()} product ${productNumber}-${subIndex}. Explore its features and enjoy its benefits. A great addition to the ${category} collection.`,
+        name: `New ${category} Item ${productNumber}-${subIndex}`, // Changed "Product" to "Item" for variety
+        description: `This is a high-quality new ${category.toLowerCase()} item ${productNumber}-${subIndex}. Explore its features and enjoy its benefits. A great addition to the ${category} collection. Stock keeping unit: SKU${1000 + index}. Batch number BATCH-${2023 + index}.`,
         price: price,
         category: category,
         imageUrl: defaultImg,
-        images: [defaultImg],
-        rating: parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
-        specifications: [],
+        images: [defaultImg, `https://placehold.co/600x400.png?extra=${index}`], // Added a second unique image
+        rating: parseFloat((Math.random() * (5 - 3.5) + 3.5).toFixed(1)), // Slightly higher min rating
+        specifications: [{name: "Origin", value: (index % 2 === 0) ? "Local" : "Imported"}, {name: "Warranty", value: "1 Year"}], // Added some basic specs
         reviews: [],
     };
   })
-];
+].map(p => mapProductForConsistency(p)); // Ensure all seed products are consistently mapped
 
-const DEFAULT_PRODUCTS_SEED: Product[] = RAW_DEFAULT_PRODUCTS_SEED.map((p, index) => {
-    const defaultImg = 'https://placehold.co/600x400.png';
-    const pImages = p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : [defaultImg]);
-    return {
-      id: p.id || `${index + 1}-prod`,
-      name: p.name || `Product ${index + 1}`,
-      description: p.description || 'Default product description.',
-      price: p.price || parseFloat((Math.random() * 1000).toFixed(2)),
-      category: p.category || CATEGORIES[index % CATEGORIES.length],
-      imageUrl: pImages[0],
-      images: pImages,
-      rating: p.rating || parseFloat((Math.random() * 2 + 3).toFixed(1)), // Between 3.0 and 5.0
-      specifications: p.specifications || [],
-      reviews: p.reviews || [],
-    };
-});
 
 // In-memory store
 let productsData: Product[];
 
-function mapProductForConsistency(p: any): Product { // Add 'any' type for p from potentially old localStorage
+function mapProductForConsistency(p: any): Product {
   const defaultImg = 'https://placehold.co/600x400.png';
   const pImages = (p.images && Array.isArray(p.images) && p.images.length > 0)
-                  ? p.images
-                  : (p.imageUrl ? [p.imageUrl] : [defaultImg]);
+                  ? p.images.map(String) // Ensure all image URLs are strings
+                  : (p.imageUrl ? [String(p.imageUrl)] : [defaultImg]);
+
   return {
-    id: String(p.id || 'unknown'),
-    name: p.name || `Unnamed Product ${p.id || 'unknown'}`,
+    id: String(p.id || `fallback-${Date.now()}-${Math.random()}`), // Ensure ID is a string and provide a robust fallback
+    name: p.name || `Unnamed Product`,
     description: p.description || 'No description available.',
     price: typeof p.price === 'number' ? p.price : 0,
     category: p.category || CATEGORIES[0],
-    imageUrl: pImages[0],
-    images: pImages.map(img => String(img)), // Ensure image URLs are strings
+    imageUrl: pImages[0], // Ensure imageUrl is the first from the processed images array
+    images: pImages,
     rating: typeof p.rating === 'number' ? parseFloat(p.rating.toFixed(1)) : parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
-    specifications: Array.isArray(p.specifications) ? p.specifications.map(s => ({ ...s })) : [],
-    reviews: Array.isArray(p.reviews) ? p.reviews.map(r => ({ ...r })) : [],
+    specifications: Array.isArray(p.specifications) ? p.specifications.map(s => ({ ...s, name: String(s.name), value: String(s.value) })) : [], // Ensure spec name/value are strings
+    reviews: Array.isArray(p.reviews) ? p.reviews.map(r => ({ ...r, id: String(r.id), author: String(r.author), comment: String(r.comment), date: String(r.date), rating: Number(r.rating) })) : [], // Ensure review fields are correct type
   };
 }
 
 function initializeProductsData() {
-  const loadedProducts = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED);
-  
-  // This heuristic checks if the loaded data from localStorage is likely an older, smaller seed set.
-  // It compares lengths. If current code's default seed is larger, it suggests an update to localStorage.
-  // The `loadedProducts !== DEFAULT_PRODUCTS_SEED` check ensures this "upgrade" logic only runs
-  // if `loadFromLocalStorage` actually returned data from localStorage, not the default seed itself (e.g. on SSR).
-  if (typeof window !== 'undefined' && loadedProducts !== DEFAULT_PRODUCTS_SEED && loadedProducts.length < DEFAULT_PRODUCTS_SEED.length) {
-    productsData = DEFAULT_PRODUCTS_SEED.map(mapProductForConsistency); // Use a deep copy of the full seed
-    saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData); // "Upgrade" localStorage
+  const storedProducts = loadFromLocalStorage<Product[] | null>(PRODUCTS_STORAGE_KEY, null);
+
+  if (storedProducts && Array.isArray(storedProducts)) {
+    // If localStorage has data, check if it's "older" (fewer items than current seed)
+    // This is a heuristic for when the app's default seed data has been updated.
+    if (storedProducts.length < DEFAULT_PRODUCTS_SEED.length) {
+      productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p)); // Use deep copy of full seed
+      saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData); // "Upgrade" localStorage
+    } else {
+      // Use the data from localStorage, ensuring consistency
+      productsData = storedProducts.map(p => mapProductForConsistency(p));
+    }
   } else {
-    // Use loadedProducts (which could be from localStorage or the default seed if SSR/empty LS)
-    // Map it to ensure all products conform to the current Product structure and have defaults for new fields.
-    productsData = loadedProducts.map(mapProductForConsistency);
+    // localStorage is empty or data was invalid (loadFromLocalStorage returned null and cleared it)
+    // Initialize with the default seed
+    productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p)); // Use deep copy
+    saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
   }
 }
 initializeProductsData();
@@ -269,37 +250,46 @@ initializeProductsData();
 
 // --- CRUD Functions for Products ---
 export const getAllProducts = (): Product[] => {
-  return productsData.map(p => ({ ...p, reviews: p.reviews?.map(r => ({...r})), specifications: p.specifications?.map(s => ({...s})), images: p.images ? [...p.images] : [] }));
+  // Return deep copies to prevent direct mutation of the in-memory store from outside
+  return productsData.map(p => ({ 
+    ...p, 
+    reviews: p.reviews?.map(r => ({...r})) || [], 
+    specifications: p.specifications?.map(s => ({...s})) || [], 
+    images: p.images ? [...p.images] : [] 
+  }));
 };
 
 export const getProductById = (id: string): Product | undefined => {
   const product = productsData.find(p => p.id === id);
-  return product ? ({ ...product, reviews: product.reviews?.map(r => ({...r})), specifications: product.specifications?.map(s => ({...s})), images: product.images ? [...product.images] : [] }) : undefined;
+  // Return a deep copy if found
+  return product ? ({ 
+    ...product, 
+    reviews: product.reviews?.map(r => ({...r})) || [], 
+    specifications: product.specifications?.map(s => ({...s})) || [], 
+    images: product.images ? [...product.images] : [] 
+  }) : undefined;
 };
 
 export type ProductCreateInput = Omit<Product, 'id'>;
 
 export const addProduct = (productInput: ProductCreateInput): Product => {
   const existingIds = productsData.map(p => parseInt(p.id, 10)).filter(id => !isNaN(id));
-  const newIdNumber = existingIds.length > 0 ? Math.max(0, ...existingIds) + 1 : 1; // Ensure Math.max has at least one number or defaults to 0
+  const newIdNumber = existingIds.length > 0 ? Math.max(0, ...existingIds) + 1 : 1;
   const newId = newIdNumber.toString();
 
-  const defaultImageUrl = 'https://placehold.co/600x400.png';
-  const images = productInput.images && productInput.images.length > 0
-                 ? productInput.images
-                 : (productInput.imageUrl ? [productInput.imageUrl] : [defaultImageUrl]);
-
-  const newProduct: Product = {
+  const newProductRaw: Product = {
     ...productInput,
     id: newId,
-    imageUrl: images[0],
-    images: images.map(img => String(img)),
     rating: productInput.rating ?? 0,
     specifications: productInput.specifications ?? [],
     reviews: productInput.reviews ?? [],
+    images: productInput.images && productInput.images.length > 0 ? productInput.images : (productInput.imageUrl ? [productInput.imageUrl] : ['https://placehold.co/600x400.png']),
+    imageUrl: (productInput.images && productInput.images.length > 0) ? productInput.images[0] : (productInput.imageUrl || 'https://placehold.co/600x400.png'),
   };
+  const newProduct = mapProductForConsistency(newProductRaw); // Ensure consistency
   productsData.push(newProduct);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
+  // Return a deep copy
   return { ...newProduct, reviews: newProduct.reviews?.map(r => ({...r})), specifications: newProduct.specifications?.map(s => ({...s})), images: newProduct.images ? [...newProduct.images] : [] };
 };
 
@@ -312,25 +302,25 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
   const existingProduct = productsData[productIndex];
   let updatedProductData: Product = { ...existingProduct, ...updates };
 
-  // Ensure images and imageUrl are consistent
+  // Ensure images and imageUrl are consistent after updates
   if (updates.images && Array.isArray(updates.images)) {
     if (updates.images.length > 0) {
       updatedProductData.imageUrl = updates.images[0];
       updatedProductData.images = updates.images.map(img => String(img));
-    } else { // If images array is explicitly set to empty
+    } else { 
       const defaultImg = 'https://placehold.co/600x400.png';
       updatedProductData.imageUrl = defaultImg;
       updatedProductData.images = [defaultImg];
     }
-  } else if (updates.imageUrl && (!updates.images || updates.images.length === 0)) {
-    // If only imageUrl is updated and images array is not, or is empty.
+  } else if (updates.imageUrl && (!updates.images || (Array.isArray(updates.images) && updates.images.length === 0))) {
     updatedProductData.images = [updates.imageUrl];
   }
 
 
-  productsData[productIndex] = mapProductForConsistency(updatedProductData); // Ensure structure consistency on update
+  productsData[productIndex] = mapProductForConsistency(updatedProductData); 
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
   const savedProduct = productsData[productIndex];
+  // Return a deep copy
   return { ...savedProduct, reviews: savedProduct.reviews?.map(r => ({...r})), specifications: savedProduct.specifications?.map(s => ({...s})), images: savedProduct.images ? [...savedProduct.images] : [] };
 };
 
@@ -356,7 +346,7 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
     return undefined;
   }
 
-  const product = productsData[productIndex];
+  const product = productsData[productIndex]; // This is a reference to the object in productsData
   const newReview: Review = {
     id: `review${product.reviews ? product.reviews.length + 1 : 1}_${productId}_${Date.now()}`,
     author: reviewInput.author,
@@ -365,17 +355,15 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
     date: new Date().toISOString().split('T')[0],
   };
 
-  if (!product.reviews) {
-    product.reviews = [];
-  }
-  product.reviews.push(newReview);
+  product.reviews = [...(product.reviews || []), newReview]; // Ensure reviews array exists and add new review immutably
 
   const totalRating = product.reviews.reduce((sum, r) => sum + r.rating, 0);
   product.rating = product.reviews.length > 0 ? parseFloat((totalRating / product.reviews.length).toFixed(1)) : 0;
 
-  productsData[productIndex] = product;
+  // productsData[productIndex] is already updated as product is a reference.
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, productsData);
   const savedProduct = productsData[productIndex];
+  // Return a deep copy
   return { ...savedProduct, reviews: savedProduct.reviews?.map(r => ({...r})), specifications: savedProduct.specifications?.map(s => ({...s})), images: savedProduct.images ? [...savedProduct.images] : [] };
 };
 
@@ -397,69 +385,66 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 let siteSettingsData: SiteSettings;
 
 function initializeSiteSettings() {
-  const loadedSettings = loadFromLocalStorage<SiteSettings>(SETTINGS_STORAGE_KEY, DEFAULT_SITE_SETTINGS);
+  const loadedSettings = loadFromLocalStorage<SiteSettings | null>(SETTINGS_STORAGE_KEY, null);
   
-  const finalSettings = { ...DEFAULT_SITE_SETTINGS, ...loadedSettings };
-  siteSettingsData = finalSettings;
-
-  // If on client and the merging resulted in changes compared to what was *loaded* from LS
-  // (meaning DEFAULT_SITE_SETTINGS provided new/updated default values for missing keys) then save the merged version.
-  // This also handles the case where loadFromLocalStorage had to save the default for the first time.
-  if (typeof window !== 'undefined' && 
-      JSON.stringify(siteSettingsData) !== JSON.stringify(loadedSettings) && // Check if merged value is different from what was loaded
-      loadedSettings !== DEFAULT_SITE_SETTINGS) { // And ensure it was actually loaded from LS, not the default from SSR
-     saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
+  if (loadedSettings) {
+    // Merge loaded settings with defaults to ensure all keys are present
+    siteSettingsData = { ...DEFAULT_SITE_SETTINGS, ...loadedSettings };
+  } else {
+    siteSettingsData = { ...DEFAULT_SITE_SETTINGS }; // Use a copy of defaults
   }
-  // If loadFromLocalStorage returned DEFAULT_SITE_SETTINGS (e.g., on first client load or SSR),
-  // it has already handled saving it to localStorage on the client side.
+  // Save back to ensure localStorage has the full, potentially merged, structure
+  saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
 }
 initializeSiteSettings();
 
 
 export const getSiteSettings = (): SiteSettings => {
-  return { ...siteSettingsData };
+  return { ...siteSettingsData }; // Return a copy
 };
 
 export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSettings => {
   siteSettingsData = { ...siteSettingsData, ...newSettings };
   saveToLocalStorage(SETTINGS_STORAGE_KEY, siteSettingsData);
-  return { ...siteSettingsData };
+  return { ...siteSettingsData }; // Return a copy
 };
 
 // --- User Management ---
 const DEFAULT_USERS_DATA: User[] = [
     { id: 'user1', email: 'test@example.com', password: 'password123', name: 'Test User' },
     { id: 'adminuser', email: 'admin@shopsphere.com', password: 'adminpass', name: 'Shop Admin' }
-];
+].map(u => ({...u})); // Make copies
 
 let usersData: User[];
+let newIdNumber = 1; // Used in createUser if name is not provided
 
 function initializeUsersData() {
-  const loadedUsers = loadFromLocalStorage<User[]>(USERS_STORAGE_KEY, DEFAULT_USERS_DATA.map(u => ({...u})));
-  usersData = loadedUsers.map(u => ({...u})); // Work with copies
+  const loadedUsers = loadFromLocalStorage<User[] | null>(USERS_STORAGE_KEY, null);
 
-  // On the client, ensure default users (like admin) are present if they were somehow removed
-  // or if DEFAULT_USERS_DATA was updated with new essential users.
-  if (typeof window !== 'undefined') {
+  if (loadedUsers && Array.isArray(loadedUsers)) {
+    usersData = loadedUsers.map(u => ({...u})); // Work with copies
+    // Ensure default users are present
     let needsSave = false;
     DEFAULT_USERS_DATA.forEach(defaultUser => {
       if (!usersData.find(u => u.email === defaultUser.email)) {
-        usersData.push({...defaultUser});
+        usersData.push({...defaultUser}); // Add a copy
         needsSave = true;
       }
     });
     if (needsSave) {
       saveToLocalStorage(USERS_STORAGE_KEY, usersData);
     }
+  } else {
+    usersData = DEFAULT_USERS_DATA.map(u => ({...u})); // Use copies of defaults
+    saveToLocalStorage(USERS_STORAGE_KEY, usersData);
   }
-  // If loadFromLocalStorage returned DEFAULT_USERS_DATA, it already saved it to LS on client.
 }
 initializeUsersData();
 
 
 export const getUserByEmail = (email: string): User | undefined => {
   const user = usersData.find(user => user.email === email);
-  return user ? {...user} : undefined;
+  return user ? {...user} : undefined; // Return a copy
 };
 
 export type UserCreateInput = Omit<User, 'id'>;
@@ -468,41 +453,52 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
   if (usersData.find(user => user.email === userInput.email)) {
     return { error: 'Account already exists with this email.' };
   }
-  const newId = `user${usersData.length + 1}_${Date.now()}`;
-  const newUser: User = { ...userInput, id: newId, name: userInput.name || `User ${newIdNumber.toString().slice(-4)}` };
+  const newGeneratedId = `user${usersData.length + 1}_${Date.now()}`;
+  const newUser: User = { ...userInput, id: newGeneratedId, name: userInput.name || `User ${newIdNumber.toString().slice(-4)}` };
+  newIdNumber++; // Increment for next potential default name
   usersData.push(newUser);
   saveToLocalStorage(USERS_STORAGE_KEY, usersData);
-  return { ...newUser };
+  return { ...newUser }; // Return a copy
 };
 
 export const verifyUserCredentials = (email: string, pass: string): User | null => {
     const user = usersData.find(u => u.email === email);
-    if (user && user.password === pass) { // Plain text password check (demo only)
-        return {...user};
+    if (user && user.password === pass) { 
+        return {...user}; // Return a copy
     }
     return null;
 };
 
 // --- Order Management ---
-const DEFAULT_ORDERS_SEED: Order[] = []; // Start with no default orders
+const DEFAULT_ORDERS_SEED: Order[] = []; 
 let ordersData: Order[];
-let newIdNumber = 1; // for user IDs if needed for name generation
 
 function initializeOrdersData() {
-  // loadFromLocalStorage will return DEFAULT_ORDERS_SEED if:
-  // 1. Running on server (window is undefined)
-  // 2. localStorage key is not found on client
-  // 3. localStorage data is corrupted on client (it removes the item and then returns default)
-  // In cases 2 and 3 (on client), it will also save DEFAULT_ORDERS_SEED to localStorage.
-  ordersData = loadFromLocalStorage<Order[]>(ORDERS_STORAGE_KEY, DEFAULT_ORDERS_SEED);
-  // No further complex conditions are needed here for the initial load.
-  // ordersData is now correctly populated either from localStorage or with the default.
+  ordersData = loadFromLocalStorage<Order[]>(ORDERS_STORAGE_KEY, DEFAULT_ORDERS_SEED.map(o => ({...o}))); // Ensure it's an array
+  // If ordersData from localStorage is null (first load or corrupted data that was cleared),
+  // loadFromLocalStorage would have returned DEFAULT_ORDERS_SEED (an empty array in this case)
+  // and saved it back. So ordersData will always be an array here.
 }
 initializeOrdersData();
 
 
 export const getAllOrders = (): Order[] => {
-  return ordersData.map(o => ({...o})).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()); // Sort by most recent
+  return ordersData.map(o => ({
+    ...o, 
+    items: o.items.map(item => ({...item, product: {...item.product}})), // Deep copy items and product within items
+    shippingAddress: {...o.shippingAddress} // Copy shippingAddress
+  })).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+};
+
+export const getOrdersByCustomerId = (customerId: string): Order[] => {
+  return ordersData
+    .filter(order => order.customerId === customerId)
+    .map(o => ({ // Deep copy matching orders
+      ...o,
+      items: o.items.map(item => ({...item, product: {...item.product}})),
+      shippingAddress: {...o.shippingAddress}
+    }))
+    .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
 };
 
 export type OrderCreateInput = Omit<Order, 'id' | 'orderNumber' | 'orderDate' | 'status'>;
@@ -516,11 +512,16 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
     id: newId,
     orderNumber: newOrderNumber,
     orderDate: new Date().toISOString(),
-    status: 'Pending', // Default status
+    status: 'Pending', 
   };
-  ordersData.unshift(newOrder); // Add to the beginning for recent first
+  ordersData.unshift(newOrder); 
   saveToLocalStorage(ORDERS_STORAGE_KEY, ordersData);
-  return { ...newOrder };
+  // Return a deep copy of the new order
+  return {
+    ...newOrder,
+    items: newOrder.items.map(item => ({...item, product: {...item.product}})),
+    shippingAddress: {...newOrder.shippingAddress}
+  };
 };
 
 export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Order | undefined => {
@@ -530,7 +531,13 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
     }
     ordersData[orderIndex].status = newStatus;
     saveToLocalStorage(ORDERS_STORAGE_KEY, ordersData);
-    return { ...ordersData[orderIndex] };
+    // Return a deep copy of the updated order
+    const updatedOrder = ordersData[orderIndex];
+    return {
+      ...updatedOrder,
+      items: updatedOrder.items.map(item => ({...item, product: {...item.product}})),
+      shippingAddress: {...updatedOrder.shippingAddress}
+    };
 };
 
 // Reset function for debugging/testing - not for production use
@@ -540,8 +547,10 @@ export function _resetAllData_USE_WITH_CAUTION() {
     localStorage.removeItem(SETTINGS_STORAGE_KEY);
     localStorage.removeItem(USERS_STORAGE_KEY);
     localStorage.removeItem(ORDERS_STORAGE_KEY);
-    console.warn("All ShopSphere localStorage data has been cleared.");
-    // Re-initialize with defaults
+    console.warn("All ShopSphere localStorage data has been cleared. Please refresh the page to re-initialize with defaults.");
+    // Re-initialize with defaults by effectively "re-running" the module's top-level init logic,
+    // or rather, by setting the in-memory stores to defaults and letting the next load pick them up
+    // if localStorage is truly empty. A page refresh is the most reliable way after clearing LS.
     initializeProductsData();
     initializeSiteSettings();
     initializeUsersData();
@@ -550,3 +559,5 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+
+    
