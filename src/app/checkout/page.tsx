@@ -163,9 +163,9 @@ export default function CheckoutPage() {
     },
   });
 
-  const itemsSubtotal = getCartTotal();
-  const mockTaxes = itemsSubtotal * 0.18; 
-  const finalOrderTotal = itemsSubtotal + selectedShippingPrice + mockTaxes;
+  const itemsSubtotal = getCartTotal(); // This is now tax-inclusive
+  const taxes = 0; // Tax is included in product prices
+  const finalOrderTotal = itemsSubtotal + selectedShippingPrice + taxes;
 
   const watchedPaymentMethod = form.watch("paymentMethod");
   const watchedUpiProvider = form.watch("upiProvider");
@@ -178,8 +178,6 @@ export default function CheckoutPage() {
   }, [hasMounted, cartItems, router, toast]);
 
    useEffect(() => {
-    // Always ensure selectedShippingPrice is FIXED_SHIPPING_COST
-    // This simplifies logic as the price doesn't change with selection anymore
     setSelectedShippingPrice(FIXED_SHIPPING_COST);
   }, [form.watch("shippingMethod")]);
 
@@ -206,11 +204,11 @@ export default function CheckoutPage() {
         shippingAddress: data.shippingAddress as ShippingAddress,
         items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
         shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
-        shippingCost: selectedShippingPrice, // This will be FIXED_SHIPPING_COST
+        shippingCost: selectedShippingPrice,
         paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
         paymentDetails: paymentDetailsDescription,
-        subtotal: itemsSubtotal,
-        taxes: mockTaxes,
+        subtotal: itemsSubtotal, // Tax-inclusive subtotal
+        taxes: taxes, // 0, as tax is included in item prices
         totalAmount: finalOrderTotal,
     };
 
@@ -331,8 +329,7 @@ export default function CheckoutPage() {
                     <RadioGroup
                       onValueChange={(value) => {
                         field.onChange(value);
-                        // selectedShippingPrice is now always FIXED_SHIPPING_COST
-                        // No need to update it based on selection here
+                        setSelectedShippingPrice(FIXED_SHIPPING_COST);
                       }}
                       value={field.value}
                       className="space-y-3"
@@ -549,17 +546,14 @@ export default function CheckoutPage() {
                 <Separator />
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Items ({cartItems.reduce((sum, item) => sum + item.quantity, 0)}) Subtotal</span>
+                    <span className="text-muted-foreground">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                     <span className="font-medium">₹{itemsSubtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">₹{selectedShippingPrice.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Estimated Taxes</span>
-                    <span className="font-medium">₹{mockTaxes.toFixed(2)}</span> 
-                  </div>
+                  {/* Taxes line removed as they are included in product prices */}
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
@@ -579,5 +573,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-      

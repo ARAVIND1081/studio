@@ -18,11 +18,11 @@ const getStatusVariant = (status: OrderStatus): "default" | "secondary" | "destr
     case 'Pending':
       return 'outline';
     case 'Processing':
-      return 'default'; // Using primary color for active processing
+      return 'default'; 
     case 'Shipped':
-      return 'secondary'; // Using a slightly different color for shipped
+      return 'secondary'; 
     case 'Delivered':
-      return 'default'; // Use 'default' which is often success-like, or create a new variant
+      return 'default'; 
     case 'Cancelled':
       return 'destructive';
     default:
@@ -52,7 +52,7 @@ export default function MyOrdersPage() {
         const userOrders = getOrdersByCustomerId(currentUser.id);
         setOrders(userOrders);
       } else {
-        setOrders([]); // Clear orders if user logs out or no ID
+        setOrders([]); 
       }
       setPageLoading(false);
     }
@@ -151,6 +151,10 @@ export default function MyOrdersPage() {
                     <p className="text-muted-foreground"><strong>Shipping Method:</strong> {order.shippingMethod}</p>
                     <p className="text-muted-foreground"><strong>Payment:</strong> {order.paymentMethod}</p>
                 </div>
+                <div>
+                    <p className="text-muted-foreground"><strong>Subtotal (Incl. Tax):</strong> ₹{order.subtotal.toFixed(2)}</p>
+                    <p className="text-muted-foreground"><strong>Shipping:</strong> ₹{order.shippingCost.toFixed(2)}</p>
+                </div>
               </div>
             </CardContent>
             <Separator/>
@@ -166,5 +170,3 @@ export default function MyOrdersPage() {
     </div>
   );
 }
-
-    

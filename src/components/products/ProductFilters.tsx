@@ -16,7 +16,7 @@ interface ProductFiltersProps {
   initialFilters: { category: Category | 'all'; priceRange: [number, number]; rating: number };
 }
 
-const MAX_PRICE = 50000; // Example max price, adjusted for INR
+const MAX_PRICE = 60000; // Adjusted for tax-inclusive prices (approx 50000 * 1.18)
 
 export function ProductFilters({ onFilterChange, initialFilters }: ProductFiltersProps) {
   const [category, setCategory] = useState<Category | 'all'>(initialFilters.category);
@@ -58,12 +58,12 @@ export function ProductFilters({ onFilterChange, initialFilters }: ProductFilter
         </div>
 
         <div>
-          <Label htmlFor="price-range-filter" className="text-sm font-medium">Price: ₹{priceRange[0]} - ₹{priceRange[1]}</Label>
+          <Label htmlFor="price-range-filter" className="text-sm font-medium">Price (incl. tax): ₹{priceRange[0]} - ₹{priceRange[1]}</Label>
           <Slider
             id="price-range-filter"
             min={0}
             max={MAX_PRICE}
-            step={1000} // Adjusted step for INR
+            step={1000} 
             value={[priceRange[0], priceRange[1]]}
             onValueChange={(value: [number, number]) => setPriceRange(value)}
             className="mt-2 [&_[data-radix-slider-thumb]]:h-4 [&_[data-radix-slider-thumb]]:w-4 [&_[data-radix-slider-thumb]]:border-2 [&_[data-radix-slider-thumb]]:bg-accent [&_[data-radix-slider-thumb]]:border-accent [&_[data-radix-slider-range]]:bg-accent"

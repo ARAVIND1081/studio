@@ -5,13 +5,13 @@ import { useState, useMemo, useEffect } from 'react';
 import { ProductCard } from '@/components/products/ProductCard';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { SortDropdown, type SortOption } from '@/components/products/SortDropdown';
-import { getAllProducts, CATEGORIES } from '@/lib/data'; // Changed from PRODUCTS
+import { getAllProducts, CATEGORIES } from '@/lib/data'; 
 import type { Product, Category } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SearchX } from 'lucide-react';
 
-const MAX_PRICE_DEFAULT_INR = 50000; // Adjusted for INR
+const MAX_PRICE_DEFAULT_INR = 60000; // Adjusted for tax-inclusive prices (approx 50000 * 1.18)
 
 export default function ShopPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -24,11 +24,10 @@ export default function ShopPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching products
     setTimeout(() => {
-      setAllProducts(getAllProducts()); // Use getAllProducts
+      setAllProducts(getAllProducts()); 
       setIsLoading(false);
-    }, 500); // Simulating network delay
+    }, 500); 
   }, []);
 
   const filteredAndSortedProducts = useMemo(() => {
@@ -82,7 +81,7 @@ export default function ShopPage() {
       <div className="mb-8">
         <h1 className="text-4xl font-bold font-headline mb-4 text-primary">Explore Our Collection</h1>
         <p className="text-lg text-muted-foreground">
-          Use the filters and sorting options to discover your next favorite item.
+          Use the filters and sorting options to discover your next favorite item. All prices include tax.
         </p>
       </div>
       

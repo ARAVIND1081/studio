@@ -11,6 +11,7 @@ const SETTINGS_STORAGE_KEY = 'shopSphereSettings';
 const USERS_STORAGE_KEY = 'shopSphereUsers';
 const ORDERS_STORAGE_KEY = 'shopSphereOrders';
 
+const TAX_RATE = 0.18; // 18% Tax Rate
 
 // --- Helper function to load from localStorage ---
 function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
@@ -24,11 +25,18 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
         return null as T;
       }
       const parsedValue = JSON.parse(storedValue) as T;
-      // Refined type check: only perform array/object check if defaultValue itself is not null.
-      // If defaultValue is null, we trust JSON.parse to either succeed or fail appropriately for type T.
-      if (defaultValue !== null && (Array.isArray(defaultValue) !== Array.isArray(parsedValue))) {
-        console.warn(`Type mismatch for ${key} in localStorage. Expected ${Array.isArray(defaultValue) ? 'array' : 'object'}, got ${Array.isArray(parsedValue) ? 'array' : 'object'}. Resetting to default.`);
-        throw new Error('Type mismatch'); // Force catch block to reset with default
+      // Refined type check: only perform array/object check if defaultValue itself is not null and not an array (for objects).
+      // If defaultValue is null or an array, trust JSON.parse for T or handle potential array type mismatches.
+      if (defaultValue !== null && !Array.isArray(defaultValue) && typeof defaultValue === 'object') {
+        if (typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
+          console.warn(`Type mismatch for ${key} in localStorage. Expected object, got ${Array.isArray(parsedValue) ? 'array' : typeof parsedValue}. Resetting to default.`);
+          throw new Error('Type mismatch: Expected object');
+        }
+      } else if (defaultValue !== null && Array.isArray(defaultValue)) {
+         if (!Array.isArray(parsedValue)) {
+            console.warn(`Type mismatch for ${key} in localStorage. Expected array, got ${typeof parsedValue}. Resetting to default.`);
+            throw new Error('Type mismatch: Expected array');
+         }
       }
       return parsedValue;
     }
@@ -38,7 +46,6 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   }
   // If not found, error during parsing, or type mismatch:
   // Save the default value to initialize localStorage for next time.
-  // This only happens if defaultValue was not returned earlier (e.g. server-side, or successful parse)
   saveToLocalStorage(key, defaultValue);
   return defaultValue;
 }
@@ -55,6 +62,10 @@ function saveToLocalStorage<T>(key: string, value: T): void {
   }
 }
 
+// Function to apply tax to a price and round to 2 decimal places
+const applyTax = (price: number): number => {
+  return parseFloat((price * (1 + TAX_RATE)).toFixed(2));
+};
 
 const sampleReviews: Review[] = [
   { id: 'review1', author: 'Jane Doe', rating: 5, comment: 'Absolutely fantastic product!', date: '2023-10-01' },
@@ -76,7 +87,7 @@ function mapProductForConsistency(p: any): Product {
     id: String(p.id || `fallback-${Date.now()}-${Math.random()}`),
     name: p.name || `Unnamed Product`,
     description: p.description || 'No description available.',
-    price: typeof p.price === 'number' ? p.price : 0,
+    price: typeof p.price === 'number' ? p.price : 0, // Price here is expected to be tax-inclusive
     category: p.category || CATEGORIES[0],
     imageUrl: pImages[0],
     images: pImages,
@@ -87,7 +98,8 @@ function mapProductForConsistency(p: any): Product {
 }
 
 // --- Product Data Initialization ---
-const DEFAULT_PRODUCTS_SEED: Product[] = [
+// Prices in DEFAULT_PRODUCTS_SEED are pre-tax and will be adjusted by mapProductForConsistency or explicitly
+const DEFAULT_PRODUCTS_SEED_PRE_TAX: Omit<Product, 'price'> & { price: number }[] = [
   {
     id: '1', name: 'Elegant Smartwatch X1', description: 'A fusion of classic design and modern technology. Stay connected in style.', price: 29999.00, category: 'Electronics', imageUrl: 'https://placehold.co/800x600.png', images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'], rating: 4.8, specifications: [ { name: 'Display', value: '1.4" AMOLED' }, { name: 'Battery Life', value: '7 days' }, { name: 'Water Resistance', value: '5 ATM' }, ], reviews: sampleReviews.map(r => ({...r})),
   }, {
@@ -110,21 +122,21 @@ const DEFAULT_PRODUCTS_SEED: Product[] = [
     const category = CATEGORIES[categoryIndex];
     const productNumber = Math.floor(index / CATEGORIES.length) + 1;
     const subIndex = index % CATEGORIES.length + 1;
-    let price;
+    let basePrice;
     switch (category) {
-        case 'Electronics': price = parseFloat((Math.random() * (45000 - 5000) + 5000).toFixed(2)); break;
-        case 'Apparel': price = parseFloat((Math.random() * (15000 - 1000) + 1000).toFixed(2)); break;
-        case 'Home Goods': price = parseFloat((Math.random() * (20000 - 1500) + 1500).toFixed(2)); break;
-        case 'Books': price = parseFloat((Math.random() * (5000 - 500) + 500).toFixed(2)); break;
-        case 'Beauty': price = parseFloat((Math.random() * (10000 - 800) + 800).toFixed(2)); break;
-        default: price = parseFloat((Math.random() * (10000 - 500) + 500).toFixed(2));
+        case 'Electronics': basePrice = parseFloat((Math.random() * (45000 - 5000) + 5000).toFixed(2)); break;
+        case 'Apparel': basePrice = parseFloat((Math.random() * (15000 - 1000) + 1000).toFixed(2)); break;
+        case 'Home Goods': basePrice = parseFloat((Math.random() * (20000 - 1500) + 1500).toFixed(2)); break;
+        case 'Books': basePrice = parseFloat((Math.random() * (5000 - 500) + 500).toFixed(2)); break;
+        case 'Beauty': basePrice = parseFloat((Math.random() * (10000 - 800) + 800).toFixed(2)); break;
+        default: basePrice = parseFloat((Math.random() * (10000 - 500) + 500).toFixed(2));
     }
     const defaultImg = 'https://placehold.co/600x400.png';
     return {
         id: `${9 + index}`,
         name: `New ${category} Item ${productNumber}-${subIndex}`,
         description: `This is a high-quality new ${category.toLowerCase()} item ${productNumber}-${subIndex}. Explore its features and enjoy its benefits. A great addition to the ${category} collection. Stock keeping unit: SKU${1000 + index}. Batch number BATCH-${2023 + index}.`,
-        price: price,
+        price: basePrice, // Price here is pre-tax
         category: category,
         imageUrl: defaultImg,
         images: [defaultImg, `https://placehold.co/600x400.png?extra=${index}`],
@@ -133,30 +145,33 @@ const DEFAULT_PRODUCTS_SEED: Product[] = [
         reviews: [],
     };
   })
-].map(p => mapProductForConsistency(p));
+];
+
+const DEFAULT_PRODUCTS_SEED: Product[] = DEFAULT_PRODUCTS_SEED_PRE_TAX.map(p => 
+  mapProductForConsistency({ ...p, price: applyTax(p.price) })
+);
+
 
 let _productsData: Product[] | null = null;
 
 function getProductsDataStore(): Product[] {
   if (_productsData === null) {
-    const loadedProducts = loadFromLocalStorage<Product[] | null>(PRODUCTS_STORAGE_KEY, null);
-
-    if (loadedProducts && Array.isArray(loadedProducts)) {
-      if (loadedProducts.length < DEFAULT_PRODUCTS_SEED.length && typeof window !== 'undefined') {
-        _productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p));
-        saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
-      } else {
-        _productsData = loadedProducts.map(p => mapProductForConsistency(p));
-      }
-    } else {
-      _productsData = DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p));
-      if (typeof window !== 'undefined') {
-        saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
-      }
+    _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED);
+    // Ensure all loaded products have prices correctly reflecting tax,
+    // useful if localStorage had old data structure. This is a one-time migration.
+    // However, since DEFAULT_PRODUCTS_SEED is already tax-inclusive, this might be redundant
+    // if localStorage is correctly initialized or upgraded based on length.
+    // For safety, we can check if a flag for "tax_migrated_v1" exists.
+    // For simplicity in this prototype, we assume if localStorage data exists and its length matches, it's fine.
+    // If it's shorter, it gets replaced by the (now tax-inclusive) DEFAULT_PRODUCTS_SEED.
+    if (_productsData.length < DEFAULT_PRODUCTS_SEED.length && typeof window !== 'undefined') {
+      _productsData = [...DEFAULT_PRODUCTS_SEED];
+      saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
     }
   }
   return _productsData;
 }
+
 
 // --- CRUD Functions for Products ---
 export const getAllProducts = (): Product[] => {
@@ -188,6 +203,7 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newIdNumber = existingIds.length > 0 ? Math.max(0, ...existingIds) + 1 : 1;
   const newId = newIdNumber.toString();
 
+  // Price received from admin form is assumed to be tax-inclusive
   const newProductRaw: Product = {
     ...productInput,
     id: newId,
@@ -210,6 +226,7 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
     return undefined;
   }
 
+  // Price received from admin form is assumed to be tax-inclusive
   const existingProduct = store[productIndex];
   let updatedProductData: Product = { ...existingProduct, ...updates };
 
@@ -233,9 +250,9 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 };
 
 export const deleteProduct = (id: string): boolean => {
-  let store = getProductsDataStore(); // Ensure data is loaded
+  let store = getProductsDataStore(); 
   const initialLength = store.length;
-  _productsData = store.filter(p => p.id !== id); // Directly update the in-memory store
+  _productsData = store.filter(p => p.id !== id); 
   const success = _productsData.length < initialLength;
   if (success) {
     saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
@@ -293,15 +310,7 @@ let _siteSettingsData: SiteSettings | null = null;
 
 function getSiteSettingsStore(): SiteSettings {
   if (_siteSettingsData === null) {
-    const loadedSettings = loadFromLocalStorage<SiteSettings | null>(SETTINGS_STORAGE_KEY, null);
-    if (loadedSettings && typeof loadedSettings === 'object' && !Array.isArray(loadedSettings)) {
-      _siteSettingsData = { ...DEFAULT_SITE_SETTINGS, ...loadedSettings };
-    } else {
-      _siteSettingsData = { ...DEFAULT_SITE_SETTINGS };
-    }
-    if (typeof window !== 'undefined') {
-      saveToLocalStorage(SETTINGS_STORAGE_KEY, _siteSettingsData);
-    }
+    _siteSettingsData = loadFromLocalStorage<SiteSettings>(SETTINGS_STORAGE_KEY, { ...DEFAULT_SITE_SETTINGS });
   }
   return _siteSettingsData;
 }
@@ -329,10 +338,8 @@ let _newUserIdCounter = DEFAULT_USERS_DATA.length + 1;
 
 function getUsersDataStore(): User[] {
   if (_usersData === null) {
-    const loadedUsers = loadFromLocalStorage<User[] | null>(USERS_STORAGE_KEY, null);
-    if (loadedUsers && Array.isArray(loadedUsers)) {
-      _usersData = loadedUsers.map(u => ({...u}));
-      let needsSave = false;
+    _usersData = loadFromLocalStorage<User[]>(USERS_STORAGE_KEY, [...DEFAULT_USERS_DATA]);
+    let needsSave = false;
       DEFAULT_USERS_DATA.forEach(defaultUser => {
         if (!_usersData!.find(u => u.email === defaultUser.email)) {
           _usersData!.push({...defaultUser});
@@ -342,12 +349,6 @@ function getUsersDataStore(): User[] {
       if (needsSave && typeof window !== 'undefined') {
         saveToLocalStorage(USERS_STORAGE_KEY, _usersData);
       }
-    } else {
-      _usersData = DEFAULT_USERS_DATA.map(u => ({...u}));
-      if (typeof window !== 'undefined') {
-        saveToLocalStorage(USERS_STORAGE_KEY, _usersData);
-      }
-    }
     _newUserIdCounter = (_usersData.length > 0 ? Math.max(..._usersData.map(u => parseInt(u.id.replace('user','').split('_')[0]) || 0)) : 0) + 1;
   }
   return _usersData;
@@ -393,7 +394,7 @@ let _ordersData: Order[] | null = null;
 
 function getOrdersDataStore(): Order[] {
   if (_ordersData === null) {
-    _ordersData = loadFromLocalStorage<Order[]>(ORDERS_STORAGE_KEY, DEFAULT_ORDERS_SEED.map(o => ({...o})));
+    _ordersData = loadFromLocalStorage<Order[]>(ORDERS_STORAGE_KEY, [...DEFAULT_ORDERS_SEED]);
   }
   return _ordersData;
 }
@@ -431,7 +432,9 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
     id: newId,
     orderNumber: newOrderNumber,
     orderDate: new Date().toISOString(),
-    status: 'Pending', 
+    status: 'Pending',
+    taxes: 0, // Tax is now included in product prices / subtotal
+    totalAmount: orderInput.subtotal + orderInput.shippingCost, // subtotal is already tax-inclusive
   };
   store.unshift(newOrder); 
   saveToLocalStorage(ORDERS_STORAGE_KEY, store);
@@ -475,21 +478,3 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
-
-// Initialize all data stores on first access if not already initialized (e.g. by a page load)
-// This ensures that even if no specific getter is called, the stores are ready.
-// However, the individual getters (getProductsDataStore, etc.) already handle this.
-// Calling them here is more of an eager initialization, which might not be strictly necessary
-// with the current lazy-loading pattern in each getter.
-// For robustness and to ensure `_resetAllData_USE_WITH_CAUTION` can correctly nullify for reload,
-// we should rely on the getters' internal checks.
-
-// This block below is commented out as the lazy initialization within each getter is preferred.
-/*
-if (typeof window !== 'undefined') {
-  getProductsDataStore();
-  getSiteSettingsStore();
-  getUsersDataStore();
-  getOrdersDataStore();
-}
-*/
