@@ -51,3 +51,42 @@ export interface User {
   email: string;
   password?: string; // In a real app, this should be a securely hashed password
 }
+
+// Order related types
+export interface OrderItem extends CartItem {
+  // Inherits product and quantity
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phoneNumber: string;
+}
+
+export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+
+export const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+
+
+export interface Order {
+  id: string; // Unique internal ID
+  orderNumber: string; // User-friendly order number (e.g., SHP-123456)
+  customerId?: string; // Optional: if users are logged in and we want to link orders
+  customerName: string; // From shipping details
+  shippingAddress: ShippingAddress;
+  items: OrderItem[];
+  shippingMethod: string;
+  shippingCost: number;
+  paymentMethod: string;
+  paymentDetails?: string; // e.g., "Card ending in XXXX" or "UPI ID: ..."
+  subtotal: number;
+  taxes: number;
+  totalAmount: number;
+  orderDate: string; // ISO string for date/time
+  status: OrderStatus;
+}

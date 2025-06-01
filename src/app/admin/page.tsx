@@ -1,20 +1,25 @@
 
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getSiteSettings, updateSiteSettings } from "@/lib/data";
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle } from 'lucide-react';
-import type { Product, SiteSettings } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getSiteSettings, updateSiteSettings, getAllOrders, updateOrderStatus } from "@/lib/data";
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info } from 'lucide-react';
+import type { Product, SiteSettings, Order, OrderStatus } from "@/types";
+import { ORDER_STATUSES } from "@/types";
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from 'next/navigation';
-import Image from 'next/image'; // For image previews
+import Image from 'next/image';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+
 
 const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
 
@@ -23,7 +28,7 @@ interface AdminProductFormInput {
   description: string;
   price: number;
   category: string;
-  imagePreviews: string[]; // Store Data URIs or existing URLs for preview
+  imagePreviews: string[];
 }
 
 const initialNewProductFormState: AdminProductFormInput = {
@@ -40,6 +45,10 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isOrderDetailsDialogOpen, setIsOrderDetailsDialogOpen] = useState(false);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -74,11 +83,16 @@ export default function AdminPage() {
     if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshSiteSettings();
+      refreshOrders();
     }
   }, [isAuthorizedAdminUser]);
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
+  };
+
+  const refreshOrders = () => {
+    setOrders(getAllOrders());
   };
 
   const refreshSiteSettings = () => {
@@ -186,8 +200,8 @@ export default function AdminPage() {
         description: newProductForm.description,
         price: newProductForm.price,
         category: newProductForm.category,
-        imageUrl: newProductForm.imagePreviews[0], // First image as primary
-        images: newProductForm.imagePreviews,      // All images
+        imageUrl: newProductForm.imagePreviews[0], 
+        images: newProductForm.imagePreviews,      
         rating: 0, 
         specifications: [], 
         reviews: [], 
@@ -244,7 +258,7 @@ export default function AdminPage() {
       toast({ title: "Product Updated", description: `${currentProductForm.name} has been successfully updated.` });
       setIsEditDialogOpen(false);
       setEditingProduct(null);
-      setCurrentProductForm({imagePreviews: []}); // Reset form, including previews
+      setCurrentProductForm({imagePreviews: []});
     } catch (error) {
       toast({ title: "Error", description: "Failed to update product.", variant: "destructive" });
       console.error("Error updating product:", error);
@@ -315,6 +329,22 @@ export default function AdminPage() {
     }
   };
 
+  const handleViewOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setIsOrderDetailsDialogOpen(true);
+  };
+
+  const handleOrderStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    const updatedOrder = updateOrderStatus(orderId, newStatus);
+    if (updatedOrder) {
+      refreshOrders();
+      toast({ title: "Order Status Updated", description: `Order ${updatedOrder.orderNumber} is now ${newStatus}.` });
+    } else {
+      toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+    }
+  };
+
+
   if (authIsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -364,7 +394,8 @@ export default function AdminPage() {
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
       </p>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Product Management Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
@@ -493,31 +524,34 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
-            <div className="max-h-72 overflow-y-auto pr-2 space-y-3">
-              {products.map(product => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                  <div className="flex items-center gap-3">
-                    <Image src={product.imageUrl} alt={product.name} width={40} height={30} className="rounded object-cover aspect-[4/3]" data-ai-hint="product thumbnail" />
-                    <div>
-                      <p className="font-semibold">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
+            <ScrollArea className="max-h-72 pr-2">
+                <div className="space-y-3">
+                {products.map(product => (
+                    <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                    <div className="flex items-center gap-3">
+                        <Image src={product.imageUrl} alt={product.name} width={40} height={30} className="rounded object-cover aspect-[4/3]" data-ai-hint="product thumbnail" />
+                        <div>
+                        <p className="font-semibold">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
+                        </div>
                     </div>
-                  </div>
-                  <div className="space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                      <Edit3 className="mr-1 h-4 w-4" /> Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)} className="text-destructive hover:border-destructive hover:text-destructive">
-                      <Trash2 className="mr-1 h-4 w-4" /> Delete
-                    </Button>
-                  </div>
+                    <div className="space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+                        <Edit3 className="mr-1 h-4 w-4" /> Edit
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)} className="text-destructive hover:border-destructive hover:text-destructive">
+                        <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        </Button>
+                    </div>
+                    </div>
+                ))}
                 </div>
-              ))}
-            </div>
+            </ScrollArea>
             {products.length === 0 && <p className="text-muted-foreground">No products found.</p>}
           </CardContent>
         </Card>
 
+        {/* Site Settings Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
@@ -563,6 +597,65 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
+        {/* Order Management Card - New */}
+        <Card className="shadow-lg lg:col-span-2">
+            <CardHeader>
+                <CardTitle className="flex items-center text-2xl font-headline">
+                    <ShoppingBag className="mr-2 h-6 w-6 text-accent"/> Order Management
+                </CardTitle>
+                <CardDescription>
+                    View and manage customer orders.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {orders.length === 0 ? (
+                    <p className="text-muted-foreground">No orders found yet.</p>
+                ) : (
+                    <ScrollArea className="max-h-96 pr-2">
+                        <div className="space-y-4">
+                            {orders.map(order => (
+                                <div key={order.id} className="p-4 bg-muted/50 rounded-md space-y-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-semibold text-primary">Order #{order.orderNumber}</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                {new Date(order.orderDate).toLocaleDateString()} - {order.customerName}
+                                            </p>
+                                        </div>
+                                        <p className="text-lg font-semibold text-accent">₹{order.totalAmount.toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor={`status-${order.id}`} className="text-sm">Status:</Label>
+                                            <Select
+                                                value={order.status}
+                                                onValueChange={(newStatus: OrderStatus) => handleOrderStatusChange(order.id, newStatus)}
+                                            >
+                                                <SelectTrigger id={`status-${order.id}`} className="h-8 w-[150px] text-xs">
+                                                    <SelectValue placeholder="Change status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ORDER_STATUSES.map(status => (
+                                                        <SelectItem key={status} value={status} className="text-xs">
+                                                            {status}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={() => handleViewOrderDetails(order)}>
+                                            <Eye className="mr-1 h-4 w-4" /> View Details
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                )}
+            </CardContent>
+        </Card>
+        
+        {/* Page Content Management Card */}
          <Card className="shadow-lg md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
@@ -692,6 +785,94 @@ export default function AdminPage() {
         </Card>
       </div>
 
+      {/* Order Details Dialog */}
+      <Dialog open={isOrderDetailsDialogOpen} onOpenChange={setIsOrderDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+                <Info className="mr-2 h-5 w-5 text-primary" /> Order Details: #{selectedOrder?.orderNumber}
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information for order placed on {selectedOrder ? new Date(selectedOrder.orderDate).toLocaleString() : ''}.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4 py-4">
+              <div>
+                <h4 className="font-semibold text-muted-foreground">Customer & Shipping</h4>
+                <p><strong>Name:</strong> {selectedOrder.customerName}</p>
+                <p><strong>Phone:</strong> {selectedOrder.shippingAddress.phoneNumber}</p>
+                <p><strong>Address:</strong> {selectedOrder.shippingAddress.addressLine1}{selectedOrder.shippingAddress.addressLine2 ? `, ${selectedOrder.shippingAddress.addressLine2}` : ''}, {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} - {selectedOrder.shippingAddress.zipCode}, {selectedOrder.shippingAddress.country}</p>
+              </div>
+              <Separator/>
+              <div>
+                <h4 className="font-semibold text-muted-foreground">Payment & Shipping</h4>
+                <p><strong>Method:</strong> {selectedOrder.paymentMethod}</p>
+                {selectedOrder.paymentDetails && <p><strong>Details:</strong> {selectedOrder.paymentDetails}</p>}
+                <p><strong>Shipping:</strong> {selectedOrder.shippingMethod} (₹{selectedOrder.shippingCost.toFixed(2)})</p>
+              </div>
+              <Separator/>
+              <div>
+                <h4 className="font-semibold text-muted-foreground">Order Items ({selectedOrder.items.reduce((acc, item) => acc + item.quantity, 0)})</h4>
+                <div className="space-y-2 mt-1">
+                  {selectedOrder.items.map(item => (
+                    <div key={item.product.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-md text-sm">
+                      <div className="flex items-center gap-2">
+                        <Image src={item.product.imageUrl} alt={item.product.name} width={32} height={24} className="rounded object-cover aspect-[4/3]" data-ai-hint="product thumbnail"/>
+                        <span>{item.product.name} (x{item.quantity})</span>
+                      </div>
+                      <span>₹{(item.product.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Separator/>
+              <div>
+                <h4 className="font-semibold text-muted-foreground">Summary</h4>
+                <div className="text-sm space-y-1 mt-1">
+                    <div className="flex justify-between"><span>Subtotal:</span><span>₹{selectedOrder.subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Shipping:</span><span>₹{selectedOrder.shippingCost.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>Taxes:</span><span>₹{selectedOrder.taxes.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-base text-primary"><span>Total:</span><span>₹{selectedOrder.totalAmount.toFixed(2)}</span></div>
+                </div>
+              </div>
+              <Separator/>
+               <div>
+                 <h4 className="font-semibold text-muted-foreground">Current Status: <span className="text-primary">{selectedOrder.status}</span></h4>
+                 <div className="mt-2">
+                    <Label htmlFor={`dialog-status-${selectedOrder.id}`} className="text-sm">Update Status:</Label>
+                    <Select
+                        value={selectedOrder.status}
+                        onValueChange={(newStatus: OrderStatus) => {
+                            handleOrderStatusChange(selectedOrder.id, newStatus);
+                            // Also update the selectedOrder in state to reflect change immediately in dialog
+                            setSelectedOrder(prev => prev ? {...prev, status: newStatus} : null);
+                        }}
+                    >
+                        <SelectTrigger id={`dialog-status-${selectedOrder.id}`} className="h-9 w-full mt-1">
+                            <SelectValue placeholder="Change status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ORDER_STATUSES.map(status => (
+                                <SelectItem key={status} value={status}>
+                                    {status}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                 </div>
+               </div>
+            </div>
+            </ScrollArea>
+          )}
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setIsOrderDetailsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
        <p className="text-sm text-muted-foreground text-center pt-4">
         Product management, site settings, and specific page content sections (including contact details) are now interactive. Changes are in-memory.
         Access to this page requires main application login as '{SUPER_ADMIN_EMAIL}'. Image "uploads" are client-side Data URI conversions.
@@ -699,4 +880,3 @@ export default function AdminPage() {
     </div>
   );
 }
-    

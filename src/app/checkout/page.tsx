@@ -25,6 +25,9 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from '@/context/CartContext';
 import { MapPin, Package, CreditCard, Phone, Smartphone, HandCoins, Landmark, User, Calendar, Lock } from "lucide-react";
+import { addOrder, type OrderCreateInput } from "@/lib/data";
+import type { ShippingAddress, OrderItem } from "@/types";
+
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -121,7 +124,7 @@ const mockBanks = [
 export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { cartItems, getCartTotal, clearCart } = useCart(); // getItemCount removed as it's calculated directly
+  const { cartItems, getCartTotal, clearCart } = useCart();
   const [selectedShippingPrice, setSelectedShippingPrice] = useState(shippingOptions[0].price);
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -171,8 +174,6 @@ export default function CheckoutPage() {
   }, [hasMounted, cartItems, router, toast]);
 
   const onSubmit = (data: CheckoutFormValues) => {
-    console.log("Checkout data:", data);
-    
     let paymentDetailsDescription = `Payment method: ${paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod}.`;
     if (data.paymentMethod === 'card' && data.cardDetails) {
         paymentDetailsDescription += ` Card ending in ${data.cardDetails.cardNumber.slice(-4)}.`;
@@ -184,16 +185,34 @@ export default function CheckoutPage() {
         }
     } else if (data.paymentMethod === 'netbanking' && data.selectedBank) {
         paymentDetailsDescription += ` Bank: ${data.selectedBank}.`;
+    } else if (data.paymentMethod === 'cod') {
+        paymentDetailsDescription += ` To be paid on delivery.`
     }
+
+    const orderToCreate: OrderCreateInput = {
+        customerName: data.shippingAddress.fullName,
+        shippingAddress: data.shippingAddress as ShippingAddress, // Assuming form type matches Order type
+        items: cartItems.map(item => ({ product: item.product, quantity: item.quantity })),
+        shippingMethod: shippingOptions.find(opt => opt.id === data.shippingMethod)?.label || data.shippingMethod,
+        shippingCost: selectedShippingPrice,
+        paymentMethod: paymentMethods.find(pm => pm.id === data.paymentMethod)?.label || data.paymentMethod,
+        paymentDetails: paymentDetailsDescription, // This is more of a summary
+        subtotal: itemsSubtotal,
+        taxes: mockTaxes,
+        totalAmount: finalOrderTotal,
+        // customerId: currentUser?.id, // If you have auth and want to link
+    };
+
+    const newOrder = addOrder(orderToCreate);
 
     toast({
       title: "Order Placed Successfully!",
-      description: `Thank you for your purchase. ${paymentDetailsDescription} Your order is being processed.`,
+      description: `Thank you, ${newOrder.customerName}! Your order #${newOrder.orderNumber} is being processed. ${paymentDetailsDescription}`,
     });
     
     const itemCountBeforeClear = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     clearCart();
-    router.push(`/order-confirmation?orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCountBeforeClear}`);
+    router.push(`/order-confirmation?orderNumber=${newOrder.orderNumber}&orderTotal=${finalOrderTotal.toFixed(2)}&itemCount=${itemCountBeforeClear}`);
   };
 
   if (!hasMounted) {
@@ -414,7 +433,7 @@ export default function CheckoutPage() {
                             <RadioGroup
                             onValueChange={(value) => {
                                 field.onChange(value);
-                                form.setValue('upiId', ""); // Reset UPI ID when provider changes
+                                form.setValue('upiId', ""); 
                                 form.clearErrors('upiId');
                             }}
                             value={field.value}
@@ -549,5 +568,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
