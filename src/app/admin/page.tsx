@@ -394,7 +394,7 @@ export default function AdminPage() {
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
       </p>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Product Management Card */}
         <Card className="shadow-lg">
           <CardHeader>
@@ -535,12 +535,12 @@ export default function AdminPage() {
                         <p className="text-sm text-muted-foreground">₹{product.price.toFixed(2)} - {product.category}</p>
                         </div>
                     </div>
-                    <div className="space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                        <Edit3 className="mr-1 h-4 w-4" /> Edit
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} className="w-full sm:w-auto">
+                          <Edit3 className="mr-1 h-4 w-4" /> Edit
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)} className="text-destructive hover:border-destructive hover:text-destructive">
-                        <Trash2 className="mr-1 h-4 w-4" /> Delete
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)} className="text-destructive hover:border-destructive hover:text-destructive w-full sm:w-auto">
+                          <Trash2 className="mr-1 h-4 w-4" /> Delete
                         </Button>
                     </div>
                     </div>
@@ -598,7 +598,7 @@ export default function AdminPage() {
         </Card>
 
         {/* Order Management Card - New */}
-        <Card className="shadow-lg lg:col-span-2">
+        <Card className="shadow-lg md:col-span-2">
             <CardHeader>
                 <CardTitle className="flex items-center text-2xl font-headline">
                     <ShoppingBag className="mr-2 h-6 w-6 text-accent"/> Order Management
