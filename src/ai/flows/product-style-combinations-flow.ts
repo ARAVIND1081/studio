@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ProductStyleCombinationsInputSchema = z.object({
+const ProductStyleCombinationsInputSchema = z.object({
   productName: z.string().describe('The name of the primary product.'),
   productDescription: z.string().describe('The description of the primary product.'),
   productCategory: z.string().describe('The category of the primary product.'),
@@ -31,7 +31,7 @@ const ProductStyleCombinationSchema = z.object({
     .describe("A list of 1 or 2 product categories that would complement the primary product for this theme."),
 });
 
-export const ProductStyleCombinationsOutputSchema = z.object({
+const ProductStyleCombinationsOutputSchema = z.object({
   combinations: z.array(ProductStyleCombinationSchema)
     .min(1)
     .max(2) // Suggest 1 or 2 themes in total.
