@@ -21,21 +21,22 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   try {
     const storedValue = localStorage.getItem(key);
     if (storedValue) {
+      // Handle specific case where 'null' string might be stored for a null default
       if (storedValue === 'null' && defaultValue === null) {
         return null as T;
       }
       const parsedValue = JSON.parse(storedValue) as T;
       
-      if (defaultValue !== null && !Array.isArray(defaultValue) && typeof defaultValue === 'object') {
-        if (typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
-          console.warn(`Type mismatch for ${key} in localStorage. Expected object, got ${Array.isArray(parsedValue) ? 'array' : typeof parsedValue}. Resetting to default.`);
-          throw new Error('Type mismatch: Expected object');
+      // Enhanced type checking: only if defaultValue is not null
+      if (defaultValue !== null) {
+        if (Array.isArray(defaultValue) && !Array.isArray(parsedValue)) {
+          console.warn(`Type mismatch for ${key} in localStorage. Expected array, got ${typeof parsedValue}. Resetting to default.`);
+          throw new Error('Type mismatch: Expected array');
         }
-      } else if (defaultValue !== null && Array.isArray(defaultValue)) {
-         if (!Array.isArray(parsedValue)) {
-            console.warn(`Type mismatch for ${key} in localStorage. Expected array, got ${typeof parsedValue}. Resetting to default.`);
-            throw new Error('Type mismatch: Expected array');
-         }
+        if (!Array.isArray(defaultValue) && typeof defaultValue === 'object' && (typeof parsedValue !== 'object' || Array.isArray(parsedValue))) {
+            console.warn(`Type mismatch for ${key} in localStorage. Expected object, got ${Array.isArray(parsedValue) ? 'array' : typeof parsedValue}. Resetting to default.`);
+            throw new Error('Type mismatch: Expected object');
+        }
       }
       return parsedValue;
     }
@@ -80,13 +81,13 @@ function mapProductForConsistency(p: any): Product {
 
   if (p.images && Array.isArray(p.images)) {
     validImagesFromArray = p.images
-      .map(img => String(img))
+      .map(img => String(img).trim()) // Trim whitespace
       .filter(imgStr => imgStr && (imgStr.startsWith('data:image') || imgStr.startsWith('http')));
   }
 
   let validPImageUrl: string | null = null;
   if (p.imageUrl) {
-    const pImageUrlStr = String(p.imageUrl);
+    const pImageUrlStr = String(p.imageUrl).trim(); // Trim whitespace
     if (pImageUrlStr.startsWith('data:image') || pImageUrlStr.startsWith('http')) {
       validPImageUrl = pImageUrlStr;
     }
@@ -101,7 +102,6 @@ function mapProductForConsistency(p: any): Product {
     finalImages = [defaultImg];
   }
   
-  // Ensure imageUrl is always set from finalImages or defaults if finalImages is somehow empty
   const finalImageUrl = finalImages.length > 0 ? finalImages[0] : defaultImg;
 
   return {
@@ -178,10 +178,6 @@ let _productsData: Product[] | null = null;
 function getProductsDataStore(): Product[] {
   if (_productsData === null) {
     _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED);
-    if (_productsData.length < DEFAULT_PRODUCTS_SEED.length && typeof window !== 'undefined') {
-      _productsData = [...DEFAULT_PRODUCTS_SEED];
-      saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
-    }
   }
   return _productsData;
 }
@@ -190,23 +186,13 @@ function getProductsDataStore(): Product[] {
 // --- CRUD Functions for Products ---
 export const getAllProducts = (): Product[] => {
   const store = getProductsDataStore();
-  return store.map(p => ({ 
-    ...p, 
-    reviews: p.reviews?.map(r => ({...r})) || [], 
-    specifications: p.specifications?.map(s => ({...s})) || [], 
-    images: p.images ? [...p.images] : [] 
-  }));
+  return store.map(p => mapProductForConsistency(p));
 };
 
 export const getProductById = (id: string): Product | undefined => {
   const store = getProductsDataStore();
   const product = store.find(p => p.id === id);
-  return product ? ({ 
-    ...product, 
-    reviews: product.reviews?.map(r => ({...r})) || [], 
-    specifications: product.specifications?.map(s => ({...s})) || [], 
-    images: product.images ? [...product.images] : [] 
-  }) : undefined;
+  return product ? mapProductForConsistency(product) : undefined;
 };
 
 export type ProductCreateInput = Omit<Product, 'id'>;
@@ -229,7 +215,7 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newProduct = mapProductForConsistency(newProductRaw);
   store.push(newProduct);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  return { ...newProduct, reviews: newProduct.reviews?.map(r => ({...r})), specifications: newProduct.specifications?.map(s => ({...s})), images: newProduct.images ? [...newProduct.images] : [] };
+  return mapProductForConsistency(newProduct); // Return mapped product
 };
 
 export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>): Product | undefined => {
@@ -257,8 +243,7 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   store[productIndex] = mapProductForConsistency(updatedProductData); 
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  const savedProduct = store[productIndex];
-  return { ...savedProduct, reviews: savedProduct.reviews?.map(r => ({...r})), specifications: savedProduct.specifications?.map(s => ({...s})), images: savedProduct.images ? [...savedProduct.images] : [] };
+  return mapProductForConsistency(store[productIndex]); // Return mapped product
 };
 
 export const deleteProduct = (id: string): boolean => {
@@ -298,9 +283,9 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
   const totalRating = product.reviews.reduce((sum, r) => sum + r.rating, 0);
   product.rating = product.reviews.length > 0 ? parseFloat((totalRating / product.reviews.length).toFixed(1)) : 0;
   
+  store[productIndex] = mapProductForConsistency(product); // Ensure product remains consistent
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  const savedProduct = store[productIndex];
-  return { ...savedProduct, reviews: savedProduct.reviews?.map(r => ({...r})), specifications: savedProduct.specifications?.map(s => ({...s})), images: savedProduct.images ? [...savedProduct.images] : [] };
+  return mapProductForConsistency(store[productIndex]); // Return mapped product
 };
 
 
@@ -415,7 +400,7 @@ export const getAllOrders = (): Order[] => {
   const store = getOrdersDataStore();
   return store.map(o => ({
     ...o, 
-    items: o.items.map(item => ({...item, product: {...item.product}})),
+    items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
     shippingAddress: {...o.shippingAddress}
   })).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
 };
@@ -426,7 +411,7 @@ export const getOrdersByCustomerId = (customerId: string): Order[] => {
     .filter(order => order.customerId === customerId)
     .map(o => ({
       ...o,
-      items: o.items.map(item => ({...item, product: {...item.product}})),
+      items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
       shippingAddress: {...o.shippingAddress}
     }))
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
@@ -447,12 +432,14 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
     status: 'Pending',
     taxes: 0, 
     totalAmount: orderInput.subtotal + orderInput.shippingCost, 
+    items: orderInput.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
   };
   store.unshift(newOrder); 
   saveToLocalStorage(ORDERS_STORAGE_KEY, store);
+  // Return a consistently mapped version
   return {
     ...newOrder,
-    items: newOrder.items.map(item => ({...item, product: {...item.product}})),
+    items: newOrder.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
     shippingAddress: {...newOrder.shippingAddress}
   };
 };
@@ -466,9 +453,10 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
   store[orderIndex].status = newStatus;
   saveToLocalStorage(ORDERS_STORAGE_KEY, store);
   const updatedOrder = store[orderIndex];
+  // Return a consistently mapped version
   return {
     ...updatedOrder,
-    items: updatedOrder.items.map(item => ({...item, product: {...item.product}})),
+    items: updatedOrder.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
     shippingAddress: {...updatedOrder.shippingAddress}
   };
 };
