@@ -25,8 +25,7 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
         return null as T;
       }
       const parsedValue = JSON.parse(storedValue) as T;
-      // Refined type check: only perform array/object check if defaultValue itself is not null and not an array (for objects).
-      // If defaultValue is null or an array, trust JSON.parse for T or handle potential array type mismatches.
+      
       if (defaultValue !== null && !Array.isArray(defaultValue) && typeof defaultValue === 'object') {
         if (typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
           console.warn(`Type mismatch for ${key} in localStorage. Expected object, got ${Array.isArray(parsedValue) ? 'array' : typeof parsedValue}. Resetting to default.`);
@@ -44,8 +43,6 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
     console.error(`Error loading or parsing ${key} from localStorage:`, error);
     localStorage.removeItem(key); // Clear corrupted data
   }
-  // If not found, error during parsing, or type mismatch:
-  // Save the default value to initialize localStorage for next time.
   saveToLocalStorage(key, defaultValue);
   return defaultValue;
 }
@@ -79,26 +76,50 @@ const sampleSpecifications: ProductSpecification[] = [
 
 function mapProductForConsistency(p: any): Product {
   const defaultImg = 'https://placehold.co/600x400.png';
-  const pImages = (p.images && Array.isArray(p.images) && p.images.length > 0)
-                  ? p.images.map(String)
-                  : (p.imageUrl ? [String(p.imageUrl)] : [defaultImg]);
+  let validImagesFromArray: string[] = [];
+
+  if (p.images && Array.isArray(p.images)) {
+    validImagesFromArray = p.images
+      .map(img => String(img))
+      .filter(imgStr => imgStr && (imgStr.startsWith('data:image') || imgStr.startsWith('http')));
+  }
+
+  let validPImageUrl: string | null = null;
+  if (p.imageUrl) {
+    const pImageUrlStr = String(p.imageUrl);
+    if (pImageUrlStr.startsWith('data:image') || pImageUrlStr.startsWith('http')) {
+      validPImageUrl = pImageUrlStr;
+    }
+  }
+
+  let finalImages: string[];
+  if (validImagesFromArray.length > 0) {
+    finalImages = validImagesFromArray;
+  } else if (validPImageUrl) {
+    finalImages = [validPImageUrl];
+  } else {
+    finalImages = [defaultImg];
+  }
+  
+  // Ensure imageUrl is always set from finalImages or defaults if finalImages is somehow empty
+  const finalImageUrl = finalImages.length > 0 ? finalImages[0] : defaultImg;
 
   return {
     id: String(p.id || `fallback-${Date.now()}-${Math.random()}`),
     name: p.name || `Unnamed Product`,
     description: p.description || 'No description available.',
-    price: typeof p.price === 'number' ? p.price : 0, // Price here is expected to be tax-inclusive
+    price: typeof p.price === 'number' ? p.price : 0,
     category: p.category || CATEGORIES[0],
-    imageUrl: pImages[0],
-    images: pImages,
+    imageUrl: finalImageUrl,
+    images: finalImages,
     rating: typeof p.rating === 'number' ? parseFloat(p.rating.toFixed(1)) : parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
     specifications: Array.isArray(p.specifications) ? p.specifications.map((s: any) => ({ name: String(s.name), value: String(s.value) })) : [],
     reviews: Array.isArray(p.reviews) ? p.reviews.map((r: any) => ({ id: String(r.id), author: String(r.author), comment: String(r.comment), date: String(r.date), rating: Number(r.rating) })) : [],
   };
 }
 
+
 // --- Product Data Initialization ---
-// Prices in DEFAULT_PRODUCTS_SEED are pre-tax and will be adjusted by mapProductForConsistency or explicitly
 const DEFAULT_PRODUCTS_SEED_PRE_TAX: Omit<Product, 'price'> & { price: number }[] = [
   {
     id: '1', name: 'Elegant Smartwatch X1', description: 'A fusion of classic design and modern technology. Stay connected in style.', price: 29999.00, category: 'Electronics', imageUrl: 'https://placehold.co/800x600.png', images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'], rating: 4.8, specifications: [ { name: 'Display', value: '1.4" AMOLED' }, { name: 'Battery Life', value: '7 days' }, { name: 'Water Resistance', value: '5 ATM' }, ], reviews: sampleReviews.map(r => ({...r})),
@@ -157,13 +178,6 @@ let _productsData: Product[] | null = null;
 function getProductsDataStore(): Product[] {
   if (_productsData === null) {
     _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED);
-    // Ensure all loaded products have prices correctly reflecting tax,
-    // useful if localStorage had old data structure. This is a one-time migration.
-    // However, since DEFAULT_PRODUCTS_SEED is already tax-inclusive, this might be redundant
-    // if localStorage is correctly initialized or upgraded based on length.
-    // For safety, we can check if a flag for "tax_migrated_v1" exists.
-    // For simplicity in this prototype, we assume if localStorage data exists and its length matches, it's fine.
-    // If it's shorter, it gets replaced by the (now tax-inclusive) DEFAULT_PRODUCTS_SEED.
     if (_productsData.length < DEFAULT_PRODUCTS_SEED.length && typeof window !== 'undefined') {
       _productsData = [...DEFAULT_PRODUCTS_SEED];
       saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
@@ -203,7 +217,6 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newIdNumber = existingIds.length > 0 ? Math.max(0, ...existingIds) + 1 : 1;
   const newId = newIdNumber.toString();
 
-  // Price received from admin form is assumed to be tax-inclusive
   const newProductRaw: Product = {
     ...productInput,
     id: newId,
@@ -226,7 +239,6 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
     return undefined;
   }
 
-  // Price received from admin form is assumed to be tax-inclusive
   const existingProduct = store[productIndex];
   let updatedProductData: Product = { ...existingProduct, ...updates };
 
@@ -433,8 +445,8 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
     orderNumber: newOrderNumber,
     orderDate: new Date().toISOString(),
     status: 'Pending',
-    taxes: 0, // Tax is now included in product prices / subtotal
-    totalAmount: orderInput.subtotal + orderInput.shippingCost, // subtotal is already tax-inclusive
+    taxes: 0, 
+    totalAmount: orderInput.subtotal + orderInput.shippingCost, 
   };
   store.unshift(newOrder); 
   saveToLocalStorage(ORDERS_STORAGE_KEY, store);
@@ -478,3 +490,4 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+
