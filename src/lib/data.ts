@@ -43,9 +43,10 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   } catch (error) {
     console.error(`Error loading or parsing ${key} from localStorage:`, error);
     localStorage.removeItem(key); // Clear corrupted data
-    saveToLocalStorage(key, defaultValue);
+    saveToLocalStorage(key, defaultValue); // Attempt to save default value back
     return defaultValue; 
   }
+  // If storedValue was null (key not found), save the default value and return it.
   saveToLocalStorage(key, defaultValue);
   return defaultValue;
 }
@@ -59,6 +60,10 @@ function saveToLocalStorage<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
+    // This could be due to various reasons, including quota exceeded.
+    if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22)) {
+      console.warn(`LocalStorage quota exceeded for key "${key}". Changes may not be saved. Data size: ${JSON.stringify(value).length} bytes.`);
+    }
   }
 }
 
@@ -81,33 +86,29 @@ function mapProductForConsistency(p: any): Product {
   const defaultImg = 'https://placehold.co/600x400.png';
   let imagesToUse: string[] = [];
 
-  // Prioritize p.images if it's an array and contains at least one valid URL
+  const isValidImageUrl = (url: string | null | undefined): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    const trimmedUrl = url.trim();
+    return trimmedUrl.startsWith('data:image') || trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+  };
+
   if (p.images && Array.isArray(p.images) && p.images.length > 0) {
-    const validPImages = p.images
-      .map(img => String(img || '').trim()) // Ensure img is a string, handle null/undefined, trim
-      .filter(imgStr => imgStr && (imgStr.startsWith('data:image') || imgStr.startsWith('http')));
+    const validPImages = p.images.filter(isValidImageUrl);
     if (validPImages.length > 0) {
       imagesToUse = validPImages;
     }
   }
 
-  // If imagesToUse is still empty (meaning p.images was not usable), try p.imageUrl
-  if (imagesToUse.length === 0 && p.imageUrl) {
-    const pImageUrlStr = String(p.imageUrl || '').trim(); // Ensure string, handle null/undefined, trim
-    if (pImageUrlStr && (pImageUrlStr.startsWith('data:image') || pImageUrlStr.startsWith('http'))) {
-      imagesToUse = [pImageUrlStr]; // If p.imageUrl is valid, use it as a single-item array
-    }
+  if (imagesToUse.length === 0 && isValidImageUrl(p.imageUrl)) {
+    imagesToUse = [p.imageUrl.trim()];
   }
-
-  // If still no valid images found from p.images or p.imageUrl, use the default placeholder
+  
   if (imagesToUse.length === 0) {
     imagesToUse = [defaultImg];
   }
 
-  // Ensure imageUrl is the first of imagesToUse, or default if imagesToUse somehow ended up empty (shouldn't with the logic above)
-  const finalImageUrl = imagesToUse.length > 0 ? imagesToUse[0] : defaultImg;
-  // Ensure images array is never empty and contains the final set of images to use
-  const finalImages = imagesToUse.length > 0 ? imagesToUse : [defaultImg];
+  const finalImageUrl = imagesToUse[0];
+  const finalImages = imagesToUse;
   
   const productName = p.name || `Unnamed Product (ID: ${p.id || 'N/A'})`;
 
@@ -116,12 +117,12 @@ function mapProductForConsistency(p: any): Product {
     name: productName,
     description: p.description || 'No description available.',
     price: typeof p.price === 'number' ? p.price : 0,
-    category: p.category || CATEGORIES[0],
+    category: p.category && CATEGORIES.includes(p.category) ? p.category : CATEGORIES[0],
     imageUrl: finalImageUrl,
     images: finalImages,
     rating: typeof p.rating === 'number' ? parseFloat(p.rating.toFixed(1)) : parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)),
-    specifications: Array.isArray(p.specifications) ? p.specifications.map((s: any) => ({ name: String(s.name), value: String(s.value) })) : [],
-    reviews: Array.isArray(p.reviews) ? p.reviews.map((r: any) => ({ id: String(r.id), author: String(r.author), comment: String(r.comment), date: String(r.date), rating: Number(r.rating) })) : [],
+    specifications: Array.isArray(p.specifications) ? p.specifications.map((s: any) => ({ name: String(s.name || 'N/A'), value: String(s.value || 'N/A') })) : [],
+    reviews: Array.isArray(p.reviews) ? p.reviews.map((r: any) => ({ id: String(r.id || `rev-${Date.now()}`), author: String(r.author || 'Anonymous'), comment: String(r.comment || ''), date: String(r.date || new Date().toISOString().split('T')[0]), rating: Number(r.rating || 0) })) : [],
   };
 }
 
@@ -184,7 +185,7 @@ let _productsData: Product[] | null = null;
 
 function getProductsDataStore(): Product[] {
   if (_productsData === null) {
-    _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED);
+    _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p)));
   }
   return _productsData;
 }
@@ -221,8 +222,8 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   };
   const newProduct = mapProductForConsistency(newProductRaw);
   store.push(newProduct);
-  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  return mapProductForConsistency(newProduct); // Return mapped product
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  return mapProductForConsistency(newProduct); 
 };
 
 export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>): Product | undefined => {
@@ -237,20 +238,34 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   if (updates.images && Array.isArray(updates.images)) {
     if (updates.images.length > 0) {
-      updatedProductData.imageUrl = updates.images[0];
-      updatedProductData.images = updates.images.map(img => String(img));
+      const validImages = updates.images.filter(img => typeof img === 'string' && img.trim() !== '');
+      if (validImages.length > 0) {
+        updatedProductData.imageUrl = validImages[0];
+        updatedProductData.images = validImages;
+      } else {
+        const defaultImg = 'https://placehold.co/600x400.png';
+        updatedProductData.imageUrl = defaultImg;
+        updatedProductData.images = [defaultImg];
+      }
     } else { 
       const defaultImg = 'https://placehold.co/600x400.png';
       updatedProductData.imageUrl = defaultImg;
       updatedProductData.images = [defaultImg];
     }
   } else if (updates.imageUrl && (!updates.images || (Array.isArray(updates.images) && updates.images.length === 0))) {
-    updatedProductData.images = [updates.imageUrl];
+     if (typeof updates.imageUrl === 'string' && updates.imageUrl.trim() !== '') {
+        updatedProductData.images = [updates.imageUrl];
+     } else {
+        const defaultImg = 'https://placehold.co/600x400.png';
+        updatedProductData.imageUrl = defaultImg;
+        updatedProductData.images = [defaultImg];
+     }
   }
 
+
   store[productIndex] = mapProductForConsistency(updatedProductData); 
-  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  return mapProductForConsistency(store[productIndex]); // Return mapped product
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  return mapProductForConsistency(store[productIndex]); 
 };
 
 export const deleteProduct = (id: string): boolean => {
@@ -259,7 +274,7 @@ export const deleteProduct = (id: string): boolean => {
   _productsData = store.filter(p => p.id !== id); 
   const success = _productsData.length < initialLength;
   if (success) {
-    saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData);
+    saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData.map(p => mapProductForConsistency(p)));
   }
   return success;
 };
@@ -290,9 +305,9 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
   const totalRating = product.reviews.reduce((sum, r) => sum + r.rating, 0);
   product.rating = product.reviews.length > 0 ? parseFloat((totalRating / product.reviews.length).toFixed(1)) : 0;
   
-  store[productIndex] = mapProductForConsistency(product); // Ensure product remains consistent
-  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store);
-  return mapProductForConsistency(store[productIndex]); // Return mapped product
+  store[productIndex] = mapProductForConsistency(product); 
+  saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  return mapProductForConsistency(store[productIndex]); 
 };
 
 
@@ -407,7 +422,7 @@ export const getAllOrders = (): Order[] => {
   const store = getOrdersDataStore();
   return store.map(o => ({
     ...o, 
-    items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
+    items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), 
     shippingAddress: {...o.shippingAddress}
   })).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
 };
@@ -418,7 +433,7 @@ export const getOrdersByCustomerId = (customerId: string): Order[] => {
     .filter(order => order.customerId === customerId)
     .map(o => ({
       ...o,
-      items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
+      items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
       shippingAddress: {...o.shippingAddress}
     }))
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
@@ -439,11 +454,10 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
     status: 'Pending',
     taxes: 0, 
     totalAmount: orderInput.subtotal + orderInput.shippingCost, 
-    items: orderInput.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), // map product in items
+    items: orderInput.items.map(item => ({...item, product: mapProductForConsistency(item.product)})), 
   };
   store.unshift(newOrder); 
-  saveToLocalStorage(ORDERS_STORAGE_KEY, store);
-  // Return a consistently mapped version
+  saveToLocalStorage(ORDERS_STORAGE_KEY, store.map(o => ({...o, items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)}))})));
   return {
     ...newOrder,
     items: newOrder.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
@@ -458,9 +472,8 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
       return undefined;
   }
   store[orderIndex].status = newStatus;
-  saveToLocalStorage(ORDERS_STORAGE_KEY, store);
+  saveToLocalStorage(ORDERS_STORAGE_KEY, store.map(o => ({...o, items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)}))})));
   const updatedOrder = store[orderIndex];
-  // Return a consistently mapped version
   return {
     ...updatedOrder,
     items: updatedOrder.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
