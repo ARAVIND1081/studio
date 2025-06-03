@@ -8,7 +8,7 @@ import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap } from 'lucide-react'; // Added Zap for Buy Now
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
@@ -17,7 +17,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
   const params = (typeof paramsProp.then === 'function')
@@ -38,12 +40,12 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
 
   const { addToCart } = useCart();
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
+  const router = useRouter();
 
   useEffect(() => {
     setIsLoading(true);
     setProduct(null); 
-    setCurrentImageIndex(0); // Reset image index when product changes
+    setCurrentImageIndex(0);
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
@@ -80,28 +82,25 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
 
   const handleBuyNow = () => {
     if (product) {
-      addToCart(product, 1); // Ensure quantity 1 or adds if not present
+      addToCart(product, 1); 
       router.push('/checkout');
     }
   };
 
+  const displayImages = product?.images && product.images.length > 0 ? product.images : (product ? [product.imageUrl] : []);
+
   const nextImage = () => {
-    if (product && product.images && product.images.length > 0) {
-      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % product.images!.length);
-    } else if (product) {
-        setCurrentImageIndex(0); // Only one default image
+    if (displayImages.length > 1) {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % displayImages.length);
     }
   };
 
   const prevImage = () => {
-    if (product && product.images && product.images.length > 0) {
-      setCurrentImageIndex((prevIndex) => (prevIndex - 1 + product.images!.length) % product.images!.length);
-    } else if (product) {
-        setCurrentImageIndex(0); // Only one default image
+     if (displayImages.length > 1) {
+      setCurrentImageIndex((prevIndex) => (prevIndex - 1 + displayImages.length) % displayImages.length);
     }
   };
   
-  const displayImages = product?.images && product.images.length > 0 ? product.images : (product ? [product.imageUrl] : []);
 
   const handleReviewSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -129,7 +128,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     const updatedProduct = addProductReview(product.id, reviewInput);
 
     if (updatedProduct) {
-      setProduct(updatedProduct); // Update local product state with new review and rating
+      setProduct(updatedProduct); 
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
       setNewReviewAuthor('');
       setNewReviewRating(0);
@@ -166,7 +165,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
                     objectFit="cover"
                     className="transition-opacity duration-300"
                     data-ai-hint="product lifestyle"
-                    key={displayImages[currentImageIndex]} // Add key for re-render on image change
+                    key={displayImages[currentImageIndex]} 
                 />
             ) : (
                 <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -179,7 +178,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/70 hover:bg-background text-primary"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/70 hover:bg-background text-primary z-10"
                 onClick={prevImage}
               >
                 <ChevronLeft className="h-6 w-6" />
@@ -187,23 +186,41 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/70 hover:bg-background text-primary"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/70 hover:bg-background text-primary z-10"
                 onClick={nextImage}
               >
                 <ChevronRight className="h-6 w-6" />
               </Button>
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-                {displayImages.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`w-3 h-3 rounded-full ${index === currentImageIndex ? 'bg-accent' : 'bg-muted hover:bg-accent/50'
-                      } transition-colors`}
-                    aria-label={`View image ${index + 1}`}
-                  />
-                ))}
-              </div>
             </>
+          )}
+           {/* Thumbnails */}
+          {displayImages.length > 1 && (
+            <div className="mt-4">
+              <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                <div className="flex space-x-2 pb-2">
+                  {displayImages.map((imgSrc, index) => (
+                    <button
+                      key={index}
+                      className={cn(
+                        "relative h-16 w-16 shrink-0 rounded-md overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                        currentImageIndex === index ? "border-primary" : "border-transparent hover:border-muted-foreground/50"
+                      )}
+                      onClick={() => setCurrentImageIndex(index)}
+                      aria-label={`View image ${index + 1} of ${product.name}`}
+                    >
+                      <Image
+                        src={imgSrc}
+                        alt={`${product.name} thumbnail ${index + 1}`}
+                        layout="fill"
+                        objectFit="cover"
+                        className="rounded-md"
+                      />
+                    </button>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
           )}
         </div>
 
@@ -238,7 +255,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
 
       <Separator />
 
-      {/* Accordion for Specifications and Reviews */}
       <Accordion type="single" collapsible className="w-full" defaultValue="reviews">
         {product.specifications && product.specifications.length > 0 && (
           <AccordionItem value="specifications">
@@ -284,7 +300,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
 
       <Separator />
 
-      {/* Add Review Form */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-headline text-primary flex items-center">
@@ -347,7 +362,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
       
       <Separator />
 
-      {/* Product Recommendations */}
       <div>
         <h2 className="text-3xl font-bold font-headline mb-6 text-primary">You Might Also Like</h2>
         <ProductRecommendations currentProductId={product.id} viewingHistory={viewingHistory} />

@@ -72,12 +72,9 @@ export default function AdminPage() {
     if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshOrders();
-      // Site settings are now from context, so explicit refresh on auth change isn't strictly needed here
-      // but form initial values might need to be set when settings are loaded.
     }
   }, [isAuthorizedAdminUser]);
 
-  // Initialize form states when siteSettings from context are available
   useEffect(() => {
     if (!settingsLoading) {
         setCurrentSettingsForm({ siteName: siteSettings.siteName, siteTagline: siteSettings.siteTagline });
@@ -155,13 +152,18 @@ export default function AdminPage() {
       const dataUris = await Promise.all(filePromises);
       if (formType === 'add') {
         setNewProductForm(prev => ({ ...prev, imagePreviews: dataUris }));
-      } else {
-        setCurrentProductForm(prev => ({ ...prev, imagePreviews: dataUris }));
+      } else { // 'edit'
+        setCurrentProductForm(prev => ({
+          ...prev,
+          imagePreviews: [...(prev.imagePreviews || []), ...dataUris], // Add new images to existing
+        }));
       }
     } catch (error) {
       console.error("Error converting files to Data URIs:", error);
       toast({ title: "Image Error", description: "Could not process selected image(s).", variant: "destructive" });
     }
+    // Reset file input to allow re-selection of same files if needed (UX improvement)
+    event.target.value = '';
   };
 
   const removeImagePreview = (index: number, formType: 'add' | 'edit') => {
@@ -230,8 +232,14 @@ export default function AdminPage() {
 
   const handleUpdateProduct = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0) || !currentProductForm.imagePreviews || currentProductForm.imagePreviews.length === 0) {
-      toast({ title: "Missing Fields", description: "Name, category, price, and at least one image are required.", variant: "destructive" });
+    if (!editingProduct || !currentProductForm.name || !currentProductForm.category || (currentProductForm.price !== undefined && currentProductForm.price <= 0)) {
+      toast({ title: "Missing Fields", description: "Name, category, and price are required.", variant: "destructive" });
+      return;
+    }
+    
+    const imagesToUpdate = currentProductForm.imagePreviews || [];
+    if (imagesToUpdate.length === 0) {
+      toast({ title: "Missing Image", description: "A product must have at least one image.", variant: "destructive" });
       return;
     }
     
@@ -240,8 +248,8 @@ export default function AdminPage() {
       description: currentProductForm.description,
       price: currentProductForm.price,
       category: currentProductForm.category,
-      imageUrl: currentProductForm.imagePreviews[0],
-      images: currentProductForm.imagePreviews,
+      imageUrl: imagesToUpdate[0],
+      images: imagesToUpdate,
     };
 
     try {
@@ -258,7 +266,6 @@ export default function AdminPage() {
   };
 
   const handleOpenSettingsDialog = () => {
-    // Initialize form with current settings from context
     setCurrentSettingsForm({ siteName: siteSettings.siteName, siteTagline: siteSettings.siteTagline });
     setIsSettingsDialogOpen(true);
   };
@@ -274,7 +281,7 @@ export default function AdminPage() {
         siteName: currentSettingsForm.siteName,
         siteTagline: currentSettingsForm.siteTagline,
       };
-      updateContextSiteSettings(settingsToUpdate); // Use context update function
+      updateContextSiteSettings(settingsToUpdate);
       toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
       setIsSettingsDialogOpen(false);
     } catch (error) {
@@ -309,7 +316,7 @@ export default function AdminPage() {
        return;
     }
     try {
-      updateContextSiteSettings(editableContentForm); // Use context update function
+      updateContextSiteSettings(editableContentForm);
       toast({ title: "Page Content Updated", description: "Relevant page content sections have been updated." });
       setIsContentDialogOpen(false);
     } catch (error) {
@@ -334,7 +341,7 @@ export default function AdminPage() {
   };
 
 
-  if (authIsLoading || settingsLoading) { // Check settingsLoading as well
+  if (authIsLoading || settingsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <p className="text-lg text-muted-foreground">Loading admin dashboard...</p>
@@ -438,7 +445,7 @@ export default function AdminPage() {
                     />
                   </div>
                   {newProductForm.imagePreviews.length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                       {newProductForm.imagePreviews.map((previewSrc, index) => (
                         <div key={index} className="relative group">
                           <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
@@ -483,7 +490,7 @@ export default function AdminPage() {
                   </div>
                   <div className="space-y-1">
                      <Label htmlFor="edit-images" className="flex items-center">
-                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images
+                       <ImageIcon className="mr-1 h-4 w-4 text-muted-foreground"/> Images (select to add more)
                      </Label>
                     <Input 
                         id="edit-images" 
@@ -491,11 +498,10 @@ export default function AdminPage() {
                         accept="image/*"
                         multiple
                         onChange={(e) => handleImageFilesChange(e, 'edit')}
-                        placeholder="Upload new to replace existing"
                     />
                   </div>
                   {(currentProductForm.imagePreviews || []).length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                       {(currentProductForm.imagePreviews || []).map((previewSrc, index) => (
                         <div key={index} className="relative group">
                           <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
@@ -586,7 +592,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* Order Management Card - New */}
+        {/* Order Management Card */}
         <Card className="shadow-lg md:col-span-2">
             <CardHeader>
                 <CardTitle className="flex items-center text-2xl font-headline">
@@ -835,7 +841,6 @@ export default function AdminPage() {
                         value={selectedOrder.status}
                         onValueChange={(newStatus: OrderStatus) => {
                             handleOrderStatusChange(selectedOrder.id, newStatus);
-                            // Also update the selectedOrder in state to reflect change immediately in dialog
                             setSelectedOrder(prev => prev ? {...prev, status: newStatus} : null);
                         }}
                     >
