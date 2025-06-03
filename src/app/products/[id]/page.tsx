@@ -8,7 +8,7 @@ import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle } from 'lucide-react'; // Added Sparkles, Loader2, AlertCircle
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
@@ -20,6 +20,9 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { generateProductAmbiance, type ProductAmbianceInput } from '@/ai/flows/product-ambiance-flow'; // Import new AI flow
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
   const params = (typeof paramsProp.then === 'function')
@@ -37,6 +40,11 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   const [newReviewComment, setNewReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+  // State for AI Ambiance Generator
+  const [ambianceText, setAmbianceText] = useState<string | null>(null);
+  const [isAmbianceLoading, setIsAmbianceLoading] = useState(false);
+  const [ambianceError, setAmbianceError] = useState<string | null>(null);
+
 
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -46,6 +54,9 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     setIsLoading(true);
     setProduct(null); 
     setCurrentImageIndex(0);
+    setAmbianceText(null); // Reset ambiance text on product change
+    setIsAmbianceLoading(false);
+    setAmbianceError(null);
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
@@ -101,7 +112,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     }
   };
   
-
   const handleReviewSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!product) return;
@@ -137,6 +147,33 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
       toast({ title: "Error", description: "Could not submit review. Product not found.", variant: "destructive" });
     }
     setIsSubmittingReview(false);
+  };
+
+  const handleGenerateAmbiance = async () => {
+    if (!product) return;
+
+    setIsAmbianceLoading(true);
+    setAmbianceText(null);
+    setAmbianceError(null);
+
+    try {
+      const input: ProductAmbianceInput = {
+        productName: product.name,
+        productDescription: product.description,
+      };
+      const result = await generateProductAmbiance(input);
+      setAmbianceText(result.ambiance);
+    } catch (error) {
+      console.error("Failed to generate product ambiance:", error);
+      setAmbianceError(error instanceof Error ? error.message : "An unexpected error occurred while generating the ambiance.");
+      toast({
+        title: "AI Ambiance Error",
+        description: "Could not generate ambiance at this time. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAmbianceLoading(false);
+    }
   };
 
 
@@ -252,6 +289,55 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
           </div>
         </div>
       </div>
+
+      {/* AI Ambiance Section */}
+      <Separator />
+      <Card className="shadow-lg border-accent/50">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center">
+            <Sparkles className="mr-2 h-6 w-6 text-accent" /> AI Product Ambiance
+          </CardTitle>
+          <CardDescription>Let our AI weave a little story about this product for you.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button onClick={handleGenerateAmbiance} disabled={isAmbianceLoading} className="bg-primary hover:bg-accent hover:text-accent-foreground">
+            {isAmbianceLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                {ambianceText ? "Regenerate Ambiance" : "Generate AI Ambiance"}
+              </>
+            )}
+          </Button>
+          {isAmbianceLoading && (
+            <div className="flex items-center space-x-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin text-accent" />
+              <span>Crafting an experience...</span>
+            </div>
+          )}
+          {ambianceError && !isAmbianceLoading && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Generation Failed</AlertTitle>
+              <AlertDescription>{ambianceError}</AlertDescription>
+            </Alert>
+          )}
+          {ambianceText && !isAmbianceLoading && !ambianceError && (
+            <Alert variant="default" className="border-primary/50 bg-primary/5 text-primary-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <AlertTitle className="font-semibold text-primary">ShopSphere AI Says:</AlertTitle>
+              <AlertDescription className="text-foreground/90 italic">
+                "{ambianceText}"
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Separator />
 
