@@ -25,7 +25,7 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
     const fetchRecommendations = async () => {
       setIsLoading(true);
       setError(null);
-      let newRecommendations: Product[] = [];
+      let newRecommendationsList: Product[] = [];
 
       try {
         const historyForAI = viewingHistory.filter(id => id !== currentProductId).slice(0, 5);
@@ -34,16 +34,16 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
           const input: ProductRecommendationsInput = { viewingHistory: historyForAI };
           const result = await productRecommendations(input);
           
-          newRecommendations = result.productRecommendations
+          newRecommendationsList = result.productRecommendations
             .map(id => getProductById(id))
             .filter((p): p is Product => p !== undefined && p.id !== currentProductId)
             .slice(0, MAX_RECOMMENDATIONS);
         }
         
         // If AI recommendations are too few or none, fill with fallback
-        if (newRecommendations.length < MAX_RECOMMENDATIONS) {
-          const fallbackNeeded = MAX_RECOMMENDATIONS - newRecommendations.length;
-          const currentRecommendedIds = new Set(newRecommendations.map(p => p.id));
+        if (newRecommendationsList.length < MAX_RECOMMENDATIONS) {
+          const fallbackNeeded = MAX_RECOMMENDATIONS - newRecommendationsList.length;
+          const currentRecommendedIds = new Set(newRecommendationsList.map(p => p.id));
           currentRecommendedIds.add(currentProductId);
 
           const fallbackItems = getAllProducts()
@@ -51,31 +51,65 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
             .sort(() => 0.5 - Math.random()) 
             .slice(0, fallbackNeeded);
           
-          newRecommendations = [...newRecommendations, ...fallbackItems];
+          newRecommendationsList = [...newRecommendationsList, ...fallbackItems];
         }
-        setRecommendations(newRecommendations);
+        setRecommendations(newRecommendationsList);
 
       } catch (e) {
-        console.error("Failed to fetch recommendations:", e);
-        const errorMessage = e instanceof Error ? e.message : "Could not load recommendations at this time.";
-        setError(errorMessage);
+        const rawErrorMessage = e instanceof Error ? e.message : "Unknown error fetching recommendations";
+        console.error(`[ProductRecommendations] Handled AI recommendation error: ${rawErrorMessage}. Displaying fallback products.`);
+        
+        let displayErrorMessage = "Could not load AI recommendations at this time. Showing some other suggestions.";
+        if (rawErrorMessage.includes("503") || rawErrorMessage.toLowerCase().includes("service unavailable") || rawErrorMessage.toLowerCase().includes("model is overloaded")) {
+          displayErrorMessage = "AI recommendations are temporarily unavailable due to high demand. Showing some other suggestions instead.";
+        }
+        setError(displayErrorMessage);
+        
         // Fallback on error: load random products
-        const fallbackOnError = getAllProducts()
-                                               .filter(p => p.id !== currentProductId)
-                                               .sort(() => 0.5 - Math.random())
-                                               .slice(0, MAX_RECOMMENDATIONS);
-        setRecommendations(fallbackOnError);
+        try {
+          const fallbackOnError = getAllProducts()
+                                                 .filter(p => p.id !== currentProductId)
+                                                 .sort(() => 0.5 - Math.random())
+                                                 .slice(0, MAX_RECOMMENDATIONS);
+          setRecommendations(fallbackOnError);
+        } catch (fallbackCatchError) {
+            console.error("[ProductRecommendations] Critical error: Failed to load even fallback recommendations:", fallbackCatchError);
+            setRecommendations([]); 
+            setError("Could not load any recommendations at this moment. Please try again later.");
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     if (currentProductId) {
-        fetchRecommendations();
+        fetchRecommendations().catch(unhandledError => {
+          // Safety net for unhandled promise rejections from fetchRecommendations itself
+          console.error("[ProductRecommendations] Unhandled error in fetchRecommendations promise chain:", unhandledError);
+          if (!error) { // If no specific error was set by the inner catch
+             setError("An unexpected error occurred while fetching recommendations. Displaying general suggestions.");
+          }
+           // Ensure fallback is attempted if not already done or if recommendations are empty
+          if (recommendations.length === 0) {
+            try {
+              const fallbackOnError = getAllProducts()
+                .filter(p => p.id !== currentProductId)
+                .sort(() => 0.5 - Math.random())
+                .slice(0, MAX_RECOMMENDATIONS);
+              setRecommendations(fallbackOnError);
+            } catch (superFallbackError) {
+              console.error("[ProductRecommendations] Critical error in final fallback:", superFallbackError);
+              setRecommendations([]);
+            }
+          }
+          setIsLoading(false);
+        });
     } else {
         setIsLoading(false); 
+        setRecommendations([]);
     }
-  }, [currentProductId, viewingHistory]); 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProductId, viewingHistory]); // error was removed from deps to prevent re-fetch loops on error state change
 
   if (isLoading) {
     return (
@@ -106,14 +140,13 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
 
   return (
     <div>
-      {error && ( 
+      {error && !isLoading && ( 
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Recommendation Error</AlertTitle>
-          <AlertDescription>{error} Displaying some general products instead.</AlertDescription>
+          <AlertTitle>Recommendation Issue</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      {/* Render recommendations if any (could be AI-driven or fallback-driven) */}
       {recommendations.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {recommendations.map(product => (
@@ -121,16 +154,13 @@ export function ProductRecommendations({ currentProductId, viewingHistory }: Pro
           ))}
         </div>
       )}
-       {/* This case might be redundant if the above "Explore More" handles it, 
-           but ensures something is said if error + no fallback items. */}
       {recommendations.length === 0 && error && !isLoading && (
          <Alert variant="default" className="border-primary/30 mt-4">
             <Zap className="h-4 w-4 text-primary" />
             <AlertTitle>More to See</AlertTitle>
-            <AlertDescription>While recommendations are unavailable, browse our full collection!</AlertDescription>
+            <AlertDescription>While specific recommendations are unavailable, browse our full collection!</AlertDescription>
         </Alert>
       )}
     </div>
   );
 }
-
