@@ -2,7 +2,8 @@
 'use client';
 
 import { ProductCard } from '@/components/products/ProductCard';
-import { getAllProducts, getSiteSettings } from '@/lib/data';
+import { getAllProducts } from '@/lib/data';
+import { useSiteSettings } from '@/context/SiteSettingsContext'; // Import useSiteSettings
 import type { Product, SiteSettings } from '@/types';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,25 +14,30 @@ const HOME_PAGE_PRODUCT_LIMIT = 8;
 export default function HomePage() {
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentSiteSettings, setCurrentSiteSettings] = useState<SiteSettings>({
-    siteName: "ShopSphere",
-    siteTagline: "Your premier destination for luxury and style. Explore our curated collection.",
-    homePageNoProductsTitle: "Our Shelves Are Being Restocked!",
-    homePageNoProductsDescription: "We're currently updating our inventory with exciting new products. Please check back soon!",
-  });
+  const { siteSettings, isLoading: settingsLoading } = useSiteSettings(); // Use context for site settings
+
 
   useEffect(() => {
-    const settings = getSiteSettings();
-    setCurrentSiteSettings(settings);
+    // Data fetching logic can remain, but site settings come from context
+    const fetchData = () => {
+      setIsLoading(true);
+      setTimeout(() => {
+        const allProducts = getAllProducts();
+        setDisplayedProducts(allProducts.slice(0, HOME_PAGE_PRODUCT_LIMIT)); 
+        setIsLoading(false); // Set loading to false after products are set
+      }, 500); 
+    };
     
-    setTimeout(() => {
-      const allProducts = getAllProducts();
-      setDisplayedProducts(allProducts.slice(0, HOME_PAGE_PRODUCT_LIMIT)); 
-      setIsLoading(false);
-    }, 500); 
-  }, []);
+    // Fetch product data once settings are available or if settings are not loading.
+    // This ensures settings are applied correctly if they affect product display or other elements.
+    if (!settingsLoading) {
+        fetchData();
+    }
 
-  if (isLoading) {
+  }, [settingsLoading]); // Re-run if settingsLoading changes (e.g. from true to false)
+
+
+  if (isLoading || settingsLoading) { // Check both loading states
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
         {Array.from({ length: HOME_PAGE_PRODUCT_LIMIT }).map((_, index) => (
@@ -49,9 +55,9 @@ export default function HomePage() {
   return (
     <div>
       <div className="mb-12 text-center">
-        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to {currentSiteSettings.siteName}</h1>
+        <h1 className="text-5xl font-bold font-headline mb-4 text-primary">Welcome to {siteSettings.siteName}</h1>
         <p className="text-xl text-muted-foreground">
-          {currentSiteSettings.siteTagline}
+          {siteSettings.siteTagline}
         </p>
       </div>
       
@@ -64,9 +70,9 @@ export default function HomePage() {
       ) : (
         <Alert variant="default" className="mt-8 border-accent text-accent-foreground bg-accent/10 max-w-md mx-auto">
             <ShoppingBag className="h-5 w-5 text-accent" />
-            <AlertTitle className="font-headline text-accent">{currentSiteSettings.homePageNoProductsTitle}</AlertTitle>
+            <AlertTitle className="font-headline text-accent">{siteSettings.homePageNoProductsTitle}</AlertTitle>
             <AlertDescription>
-            {currentSiteSettings.homePageNoProductsDescription}
+            {siteSettings.homePageNoProductsDescription}
             </AlertDescription>
         </Alert>
       )}

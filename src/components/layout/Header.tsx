@@ -7,26 +7,25 @@ import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
-import { getSiteSettings } from '@/lib/data';
 import { useAuth } from '@/context/AuthContext';
+import { useSiteSettings } from '@/context/SiteSettingsContext'; // Import useSiteSettings
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 
 export function Header() {
   const { getItemCount } = useCart();
-  const { currentUser, logout, isLoading } = useAuth();
+  const { currentUser, logout, isLoading: authIsLoading } = useAuth();
+  const { siteSettings, isLoading: settingsIsLoading } = useSiteSettings(); // Use site settings context
   const [mounted, setMounted] = useState(false);
-  const [siteName, setSiteName] = useState("ShopSphere");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const settings = getSiteSettings();
-    setSiteName(settings.siteName);
   }, []);
 
   const itemCount = mounted ? getItemCount() : 0;
+  const siteName = settingsIsLoading ? "Loading..." : siteSettings.siteName;
 
-  if (isLoading && mounted) {
+  if ((authIsLoading || settingsIsLoading) && mounted) {
     return (
       <header className="bg-background shadow-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

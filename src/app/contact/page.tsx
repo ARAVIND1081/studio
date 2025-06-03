@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"; // Removed useState for pageContent
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, MessageSquare, User, Phone, MapPin, Info } from "lucide-react";
-import { getSiteSettings } from "@/lib/data";
+import { useSiteSettings } from "@/context/SiteSettingsContext"; // Import useSiteSettings
 import type { SiteSettings } from "@/types";
 import { Separator } from "@/components/ui/separator";
 
@@ -33,31 +33,14 @@ const contactFormSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactFormSchema>;
 
-interface ContactPageContent extends SiteSettings {
-  // Inherits all from SiteSettings, can add more if needed
-}
+// Interface not strictly needed if SiteSettings from context is used directly
+// interface ContactPageContent extends SiteSettings {}
 
 export default function ContactPage() {
   const { toast } = useToast();
-  const [pageContent, setPageContent] = useState<Partial<ContactPageContent>>({
-    contactPageTitle: "Contact Us",
-    contactPageDescription: "Have a question or feedback? Fill out the form below and we'll be in touch.",
-    contactPagePhoneNumber: "",
-    contactPageAddress: "",
-    contactPageAdditionalInfo: "",
-  });
+  const { siteSettings, isLoading: settingsLoading } = useSiteSettings(); // Use context
 
-  useEffect(() => {
-    const settings = getSiteSettings();
-    setPageContent({
-      contactPageTitle: settings.contactPageTitle || "Contact Us",
-      contactPageDescription: settings.contactPageDescription || "Have a question or feedback? Fill out the form below and we'll be in touch.",
-      contactPagePhoneNumber: settings.contactPagePhoneNumber,
-      contactPageAddress: settings.contactPageAddress,
-      contactPageAdditionalInfo: settings.contactPageAdditionalInfo,
-    });
-  }, []);
-  
+  // Local form state remains
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues: {
@@ -75,6 +58,45 @@ export default function ContactPage() {
     });
     form.reset();
   }
+
+  if (settingsLoading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-8 animate-pulse">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-12 w-12 bg-muted rounded-full mb-4"></div>
+            <div className="h-10 w-3/4 bg-muted rounded mx-auto mb-2"></div>
+            <div className="h-6 w-full bg-muted rounded mx-auto"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-8">
+              <div className="h-10 bg-muted rounded"></div>
+              <div className="h-10 bg-muted rounded"></div>
+              <div className="h-24 bg-muted rounded"></div>
+              <div className="h-12 bg-muted rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
+         <Card className="shadow-lg">
+          <CardHeader><div className="h-8 w-1/2 bg-muted rounded"></div></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="h-6 bg-muted rounded w-3/4"></div>
+            <div className="h-6 bg-muted rounded w-full"></div>
+            <div className="h-6 bg-muted rounded w-2/3"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Content now comes directly from siteSettings context
+  const pageContent = {
+    contactPageTitle: siteSettings.contactPageTitle || "Contact Us",
+    contactPageDescription: siteSettings.contactPageDescription || "Have a question or feedback? Fill out the form below and we'll be in touch.",
+    contactPagePhoneNumber: siteSettings.contactPagePhoneNumber,
+    contactPageAddress: siteSettings.contactPageAddress,
+    contactPageAdditionalInfo: siteSettings.contactPageAdditionalInfo,
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">

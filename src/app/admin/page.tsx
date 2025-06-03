@@ -8,13 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getSiteSettings, updateSiteSettings, getAllOrders, updateOrderStatus } from "@/lib/data";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus } from "@/lib/data"; // Removed getSiteSettings, updateSiteSettings
 import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info } from 'lucide-react';
 import type { Product, SiteSettings, Order, OrderStatus } from "@/types";
 import { ORDER_STATUSES } from "@/types";
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { useSiteSettings } from "@/context/SiteSettingsContext"; // Import useSiteSettings
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,6 +43,7 @@ const initialNewProductFormState: AdminProductFormInput = {
 
 export default function AdminPage() {
   const { currentUser, isLoading: authIsLoading, logout: mainAppLogout } = useAuth();
+  const { siteSettings, updateSettings: updateContextSiteSettings, isLoading: settingsLoading } = useSiteSettings(); // Use context
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,19 +58,6 @@ export default function AdminPage() {
   const [newProductForm, setNewProductForm] = useState<AdminProductFormInput>(initialNewProductFormState);
   const [currentProductForm, setCurrentProductForm] = useState<Partial<AdminProductFormInput & { id?: string }>>({});
 
-
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
-    siteName: '',
-    siteTagline: '',
-    contentManagementInfoText: '',
-    homePageNoProductsTitle: '',
-    homePageNoProductsDescription: '',
-    contactPageTitle: '',
-    contactPageDescription: '',
-    contactPagePhoneNumber: '',
-    contactPageAddress: '',
-    contactPageAdditionalInfo: '',
-  });
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [currentSettingsForm, setCurrentSettingsForm] = useState<Partial<SiteSettings>>({});
 
@@ -82,10 +71,29 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAuthorizedAdminUser) {
       refreshProducts();
-      refreshSiteSettings();
       refreshOrders();
+      // Site settings are now from context, so explicit refresh on auth change isn't strictly needed here
+      // but form initial values might need to be set when settings are loaded.
     }
   }, [isAuthorizedAdminUser]);
+
+  // Initialize form states when siteSettings from context are available
+  useEffect(() => {
+    if (!settingsLoading) {
+        setCurrentSettingsForm({ siteName: siteSettings.siteName, siteTagline: siteSettings.siteTagline });
+        setEditableContentForm({
+            contentManagementInfoText: siteSettings.contentManagementInfoText,
+            homePageNoProductsTitle: siteSettings.homePageNoProductsTitle,
+            homePageNoProductsDescription: siteSettings.homePageNoProductsDescription,
+            contactPageTitle: siteSettings.contactPageTitle,
+            contactPageDescription: siteSettings.contactPageDescription,
+            contactPagePhoneNumber: siteSettings.contactPagePhoneNumber,
+            contactPageAddress: siteSettings.contactPageAddress,
+            contactPageAdditionalInfo: siteSettings.contactPageAdditionalInfo,
+        });
+    }
+  }, [siteSettings, settingsLoading]);
+
 
   const refreshProducts = () => {
     setProducts(getAllProducts());
@@ -94,22 +102,6 @@ export default function AdminPage() {
   const refreshOrders = () => {
     setOrders(getAllOrders());
   };
-
-  const refreshSiteSettings = () => {
-    const currentSettings = getSiteSettings();
-    setSiteSettings(currentSettings);
-    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
-    setEditableContentForm({
-      contentManagementInfoText: currentSettings.contentManagementInfoText,
-      homePageNoProductsTitle: currentSettings.homePageNoProductsTitle,
-      homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
-      contactPageTitle: currentSettings.contactPageTitle,
-      contactPageDescription: currentSettings.contactPageDescription,
-      contactPagePhoneNumber: currentSettings.contactPagePhoneNumber,
-      contactPageAddress: currentSettings.contactPageAddress,
-      contactPageAdditionalInfo: currentSettings.contactPageAdditionalInfo,
-    });
-  }
 
   const handleDeleteProduct = (productId: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -266,8 +258,8 @@ export default function AdminPage() {
   };
 
   const handleOpenSettingsDialog = () => {
-    const currentSettings = getSiteSettings();
-    setCurrentSettingsForm({ siteName: currentSettings.siteName, siteTagline: currentSettings.siteTagline });
+    // Initialize form with current settings from context
+    setCurrentSettingsForm({ siteName: siteSettings.siteName, siteTagline: siteSettings.siteTagline });
     setIsSettingsDialogOpen(true);
   };
 
@@ -282,8 +274,7 @@ export default function AdminPage() {
         siteName: currentSettingsForm.siteName,
         siteTagline: currentSettingsForm.siteTagline,
       };
-      updateSiteSettings(settingsToUpdate);
-      refreshSiteSettings();
+      updateContextSiteSettings(settingsToUpdate); // Use context update function
       toast({ title: "Settings Updated", description: "Site settings have been successfully updated." });
       setIsSettingsDialogOpen(false);
     } catch (error) {
@@ -293,16 +284,15 @@ export default function AdminPage() {
   };
 
   const handleOpenContentDialog = () => {
-    const currentSettings = getSiteSettings();
     setEditableContentForm({
-        contentManagementInfoText: currentSettings.contentManagementInfoText,
-        homePageNoProductsTitle: currentSettings.homePageNoProductsTitle,
-        homePageNoProductsDescription: currentSettings.homePageNoProductsDescription,
-        contactPageTitle: currentSettings.contactPageTitle,
-        contactPageDescription: currentSettings.contactPageDescription,
-        contactPagePhoneNumber: currentSettings.contactPagePhoneNumber,
-        contactPageAddress: currentSettings.contactPageAddress,
-        contactPageAdditionalInfo: currentSettings.contactPageAdditionalInfo,
+        contentManagementInfoText: siteSettings.contentManagementInfoText,
+        homePageNoProductsTitle: siteSettings.homePageNoProductsTitle,
+        homePageNoProductsDescription: siteSettings.homePageNoProductsDescription,
+        contactPageTitle: siteSettings.contactPageTitle,
+        contactPageDescription: siteSettings.contactPageDescription,
+        contactPagePhoneNumber: siteSettings.contactPagePhoneNumber,
+        contactPageAddress: siteSettings.contactPageAddress,
+        contactPageAdditionalInfo: siteSettings.contactPageAdditionalInfo,
     });
     setIsContentDialogOpen(true);
   };
@@ -319,8 +309,7 @@ export default function AdminPage() {
        return;
     }
     try {
-      updateSiteSettings(editableContentForm);
-      refreshSiteSettings();
+      updateContextSiteSettings(editableContentForm); // Use context update function
       toast({ title: "Page Content Updated", description: "Relevant page content sections have been updated." });
       setIsContentDialogOpen(false);
     } catch (error) {
@@ -345,10 +334,10 @@ export default function AdminPage() {
   };
 
 
-  if (authIsLoading) {
+  if (authIsLoading || settingsLoading) { // Check settingsLoading as well
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <p className="text-lg text-muted-foreground">Loading authentication status...</p>
+        <p className="text-lg text-muted-foreground">Loading admin dashboard...</p>
       </div>
     );
   }

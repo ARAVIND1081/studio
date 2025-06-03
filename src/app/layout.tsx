@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Toaster } from '@/components/ui/toaster';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
+import { SiteSettingsProvider } from '@/context/SiteSettingsContext'; // Import SiteSettingsProvider
 
 export const metadata: Metadata = {
   title: 'ShopSphere - Luxurious Online Shopping',
@@ -25,14 +26,16 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen">
-        <AuthProvider> {/* Wrap with AuthProvider */}
+        <AuthProvider>
           <CartProvider>
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <Footer />
-            <Toaster />
+            <SiteSettingsProvider> {/* Wrap with SiteSettingsProvider */}
+              <Header />
+              <main className="flex-grow container mx-auto px-4 py-8">
+                {children}
+              </main>
+              <Footer />
+              <Toaster />
+            </SiteSettingsProvider>
           </CartProvider>
         </AuthProvider>
       </body>
