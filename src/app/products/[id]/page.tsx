@@ -8,7 +8,7 @@ import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Palette } from 'lucide-react'; // Added Palette
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle } from 'lucide-react'; // Removed Palette
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
@@ -21,15 +21,10 @@ import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { generateProductAmbiance, type ProductAmbianceInput } from '@/ai/flows/product-ambiance-flow.ts';
-import { generateProductStyleCombinations, type ProductStyleCombinationsInput, type ProductStyleCombinationsOutput } from '@/ai/flows/product-style-combinations-flow.ts'; // Import new AI flow
+// Removed imports for product-style-combinations-flow
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ProductCard } from '@/components/products/ProductCard';
+// Removed ProductCard import as it was only used by the removed feature here
 
-
-interface DisplayedCombinationDetail {
-  themeName: string;
-  productsToShow: Product[];
-}
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
   const params = (typeof paramsProp.then === 'function')
@@ -51,11 +46,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   const [isAmbianceLoading, setIsAmbianceLoading] = useState(false);
   const [ambianceError, setAmbianceError] = useState<string | null>(null);
 
-  // State for AI Style Combinations
-  const [styleCombinationsOutput, setStyleCombinationsOutput] = useState<ProductStyleCombinationsOutput | null>(null);
-  const [displayedCombinationDetails, setDisplayedCombinationDetails] = useState<DisplayedCombinationDetail[]>([]);
-  const [isStyleCombinationsLoading, setIsStyleCombinationsLoading] = useState(false);
-  const [styleCombinationsError, setStyleCombinationsError] = useState<string | null>(null);
+  // Removed State for AI Style Combinations
 
 
   const { addToCart } = useCart();
@@ -69,10 +60,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     setAmbianceText(null);
     setIsAmbianceLoading(false);
     setAmbianceError(null);
-    setStyleCombinationsOutput(null);
-    setDisplayedCombinationDetails([]);
-    setIsStyleCombinationsLoading(false);
-    setStyleCombinationsError(null);
+    // Removed style combinations state reset
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
@@ -193,67 +181,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     }
   };
 
-  const fetchAndDisplayCombinationProducts = (aiOutput: ProductStyleCombinationsOutput, currentProduct: Product) => {
-    const allAppProducts = getAllProducts();
-    const newDetails: DisplayedCombinationDetail[] = [];
-
-    aiOutput.combinations.forEach(combination => {
-        const productsForThisTheme: Product[] = [currentProduct]; // Start with the current product
-        const pickedProductIdsForThisTheme = new Set<string>([currentProduct.id]);
-
-        combination.complementaryProductCategories.forEach(compCategoryObj => {
-            const targetCategory = compCategoryObj.category.toLowerCase();
-            const potentialProducts = allAppProducts.filter(p => 
-                p.category.toLowerCase() === targetCategory && 
-                !pickedProductIdsForThisTheme.has(p.id)
-            );
-
-            if (potentialProducts.length > 0) {
-                // Simple random pick for now, can be made smarter
-                const pickedProduct = potentialProducts[Math.floor(Math.random() * potentialProducts.length)];
-                productsForThisTheme.push(pickedProduct);
-                pickedProductIdsForThisTheme.add(pickedProduct.id);
-            }
-        });
-        newDetails.push({ themeName: combination.themeName, productsToShow: productsForThisTheme });
-    });
-    setDisplayedCombinationDetails(newDetails);
-  };
-
-
-  const handleGenerateStyleCombinations = async () => {
-    if (!product) return;
-
-    setIsStyleCombinationsLoading(true);
-    setStyleCombinationsOutput(null);
-    setDisplayedCombinationDetails([]);
-    setStyleCombinationsError(null);
-
-    try {
-      const input: ProductStyleCombinationsInput = {
-        productName: product.name,
-        productDescription: product.description,
-        productCategory: product.category,
-      };
-      const result = await generateProductStyleCombinations(input);
-      setStyleCombinationsOutput(result);
-      if (result && product) {
-        fetchAndDisplayCombinationProducts(result, product);
-      }
-
-    } catch (error) {
-      console.error("Failed to generate product style combinations:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while generating style combinations.";
-      setStyleCombinationsError(errorMessage);
-      toast({
-        title: "AI Style Ideas Error",
-        description: `Could not generate style ideas: ${errorMessage.substring(0,100)}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsStyleCombinationsLoading(false);
-    }
-  };
+  // Removed handleGenerateStyleCombinations and fetchAndDisplayCombinationProducts functions
 
 
   if (isLoading) {
@@ -417,73 +345,8 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
         </CardContent>
       </Card>
 
-      {/* AI Style Combinations Section */}
-      <Separator />
-      <Card className="shadow-lg border-accent/50">
-        <CardHeader>
-          <CardTitle className="text-2xl font-headline text-primary flex items-center">
-            <Palette className="mr-2 h-6 w-6 text-accent" /> AI Style Companion
-          </CardTitle>
-          <CardDescription>Discover products that complete the look with AI-powered suggestions.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={handleGenerateStyleCombinations} disabled={isStyleCombinationsLoading} className="bg-primary hover:bg-accent hover:text-accent-foreground">
-            {isStyleCombinationsLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Ideas...
-              </>
-            ) : (
-              <>
-                <Palette className="mr-2 h-4 w-4" />
-                {displayedCombinationDetails.length > 0 ? "Regenerate Style Ideas" : "Get Style Ideas"}
-              </>
-            )}
-          </Button>
-
-          {isStyleCombinationsLoading && (
-            <div className="flex items-center space-x-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin text-accent" />
-              <span>Finding stylish combinations...</span>
-            </div>
-          )}
-
-          {styleCombinationsError && !isStyleCombinationsLoading && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Style Ideas Failed</AlertTitle>
-              <AlertDescription>{styleCombinationsError}</AlertDescription>
-            </Alert>
-          )}
-
-          {!isStyleCombinationsLoading && !styleCombinationsError && displayedCombinationDetails.length > 0 && (
-            <div className="space-y-8 mt-6">
-              {displayedCombinationDetails.map((combo, index) => (
-                <div key={index}>
-                  <h3 className="text-xl font-semibold font-headline text-primary mb-4">{combo.themeName}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {combo.productsToShow.map(p => (
-                      <ProductCard key={p.id} product={p} />
-                    ))}
-                  </div>
-                  {index < displayedCombinationDetails.length - 1 && <Separator className="my-8" />}
-                </div>
-              ))}
-            </div>
-          )}
-           {!isStyleCombinationsLoading && !styleCombinationsError && styleCombinationsOutput && displayedCombinationDetails.length === 0 && (
-             <Alert variant="default" className="border-primary/50 bg-primary/5">
-                <Palette className="h-4 w-4 text-primary" />
-                <AlertTitle className="font-semibold text-primary">More to Explore!</AlertTitle>
-                <AlertDescription className="text-foreground/90">
-                    The AI shared some great ideas, but we couldn't find specific matching products in stock right now for those exact categories. Try exploring our full <Link href="/shop" className="underline hover:text-accent">shop collection</Link>!
-                </AlertDescription>
-            </Alert>
-           )}
-        </CardContent>
-      </Card>
-
-
+      {/* Removed AI Style Combinations Section */}
+      
       <Separator />
 
       <Accordion type="single" collapsible className="w-full" defaultValue="reviews">
@@ -600,4 +463,3 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     </div>
   );
 }
-
