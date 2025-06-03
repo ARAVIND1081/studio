@@ -43,6 +43,8 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   } catch (error) {
     console.error(`Error loading or parsing ${key} from localStorage:`, error);
     localStorage.removeItem(key); // Clear corrupted data
+    saveToLocalStorage(key, defaultValue);
+    return defaultValue; 
   }
   saveToLocalStorage(key, defaultValue);
   return defaultValue;
@@ -77,36 +79,41 @@ const sampleSpecifications: ProductSpecification[] = [
 
 function mapProductForConsistency(p: any): Product {
   const defaultImg = 'https://placehold.co/600x400.png';
-  let validImagesFromArray: string[] = [];
+  let imagesToUse: string[] = [];
 
-  if (p.images && Array.isArray(p.images)) {
-    validImagesFromArray = p.images
-      .map(img => String(img).trim()) // Trim whitespace
+  // Prioritize p.images if it's an array and contains at least one valid URL
+  if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+    const validPImages = p.images
+      .map(img => String(img || '').trim()) // Ensure img is a string, handle null/undefined, trim
       .filter(imgStr => imgStr && (imgStr.startsWith('data:image') || imgStr.startsWith('http')));
-  }
-
-  let validPImageUrl: string | null = null;
-  if (p.imageUrl) {
-    const pImageUrlStr = String(p.imageUrl).trim(); // Trim whitespace
-    if (pImageUrlStr.startsWith('data:image') || pImageUrlStr.startsWith('http')) {
-      validPImageUrl = pImageUrlStr;
+    if (validPImages.length > 0) {
+      imagesToUse = validPImages;
     }
   }
 
-  let finalImages: string[];
-  if (validImagesFromArray.length > 0) {
-    finalImages = validImagesFromArray;
-  } else if (validPImageUrl) {
-    finalImages = [validPImageUrl];
-  } else {
-    finalImages = [defaultImg];
+  // If imagesToUse is still empty (meaning p.images was not usable), try p.imageUrl
+  if (imagesToUse.length === 0 && p.imageUrl) {
+    const pImageUrlStr = String(p.imageUrl || '').trim(); // Ensure string, handle null/undefined, trim
+    if (pImageUrlStr && (pImageUrlStr.startsWith('data:image') || pImageUrlStr.startsWith('http'))) {
+      imagesToUse = [pImageUrlStr]; // If p.imageUrl is valid, use it as a single-item array
+    }
   }
+
+  // If still no valid images found from p.images or p.imageUrl, use the default placeholder
+  if (imagesToUse.length === 0) {
+    imagesToUse = [defaultImg];
+  }
+
+  // Ensure imageUrl is the first of imagesToUse, or default if imagesToUse somehow ended up empty (shouldn't with the logic above)
+  const finalImageUrl = imagesToUse.length > 0 ? imagesToUse[0] : defaultImg;
+  // Ensure images array is never empty and contains the final set of images to use
+  const finalImages = imagesToUse.length > 0 ? imagesToUse : [defaultImg];
   
-  const finalImageUrl = finalImages.length > 0 ? finalImages[0] : defaultImg;
+  const productName = p.name || `Unnamed Product (ID: ${p.id || 'N/A'})`;
 
   return {
     id: String(p.id || `fallback-${Date.now()}-${Math.random()}`),
-    name: p.name || `Unnamed Product`,
+    name: productName,
     description: p.description || 'No description available.',
     price: typeof p.price === 'number' ? p.price : 0,
     category: p.category || CATEGORIES[0],
