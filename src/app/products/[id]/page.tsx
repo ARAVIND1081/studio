@@ -1,14 +1,14 @@
 
 'use client';
 
-import { use, useEffect, useState, type FormEvent } from 'react';
+import { use, useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import Image from 'next/image';
-import { getProductById, addProductReview, type ReviewCreateInput, getAllProducts } from '@/lib/data'; // Added getAllProducts
+import { getProductById, addProductReview, type ReviewCreateInput } from '@/lib/data';
 import type { Product, Review } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle } from 'lucide-react'; // Removed Palette
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
@@ -21,9 +21,8 @@ import { useRouter } from 'next/navigation';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { generateProductAmbiance, type ProductAmbianceInput } from '@/ai/flows/product-ambiance-flow.ts';
-// Removed imports for product-style-combinations-flow
+import { generateVirtualTryOnImage, type VirtualTryOnInput, type VirtualTryOnOutput } from '@/ai/flows/virtual-tryon-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-// Removed ProductCard import as it was only used by the removed feature here
 
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
@@ -46,7 +45,12 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   const [isAmbianceLoading, setIsAmbianceLoading] = useState(false);
   const [ambianceError, setAmbianceError] = useState<string | null>(null);
 
-  // Removed State for AI Style Combinations
+  // State for AI Virtual Try-On
+  const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null);
+  const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null);
+  const [generatedTryOnImage, setGeneratedTryOnImage] = useState<string | null>(null);
+  const [isTryOnLoading, setIsTryOnLoading] = useState(false);
+  const [tryOnError, setTryOnError] = useState<string | null>(null);
 
 
   const { addToCart } = useCart();
@@ -60,7 +64,12 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     setAmbianceText(null);
     setIsAmbianceLoading(false);
     setAmbianceError(null);
-    // Removed style combinations state reset
+    // Reset Try-On state on product change
+    setUserPhotoPreview(null);
+    setUserPhotoFile(null);
+    setGeneratedTryOnImage(null);
+    setIsTryOnLoading(false);
+    setTryOnError(null);
     
     const fetchedProduct = getProductById(id);
     if (fetchedProduct) {
@@ -181,7 +190,56 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     }
   };
 
-  // Removed handleGenerateStyleCombinations and fetchAndDisplayCombinationProducts functions
+  const handleUserPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 4 * 1024 * 1024) { // ~4MB limit for user photo
+        toast({ title: "Image Too Large", description: "Please upload an image smaller than 4MB.", variant: "destructive" });
+        event.target.value = ''; // Reset file input
+        return;
+      }
+      setUserPhotoFile(file);
+      setGeneratedTryOnImage(null); // Clear previous result if new photo is uploaded
+      setTryOnError(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setUserPhotoFile(null);
+      setUserPhotoPreview(null);
+    }
+  };
+
+  const handleGenerateTryOn = async () => {
+    if (!userPhotoPreview || !product) { // Check userPhotoPreview which holds the Data URI
+      toast({ title: "Missing Photo", description: "Please upload your photo first.", variant: "destructive" });
+      return;
+    }
+
+    setIsTryOnLoading(true);
+    setGeneratedTryOnImage(null);
+    setTryOnError(null);
+
+    try {
+      const input: VirtualTryOnInput = {
+        userPhotoDataUri: userPhotoPreview,
+        productPhotoUrl: product.imageUrl, // This can be an http/https URL or a Data URI
+        productName: product.name,
+        productCategory: product.category,
+      };
+      const result: VirtualTryOnOutput = await generateVirtualTryOnImage(input);
+      setGeneratedTryOnImage(result.generatedImageDataUri);
+      toast({ title: "AI Try-On Complete!", description: "Check out your virtual try-on image.", duration: 5000});
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during virtual try-on.";
+      setTryOnError(errorMessage);
+      toast({ title: "AI Try-On Error", description: errorMessage.substring(0,150), variant: "destructive", duration: 7000 });
+    } finally {
+      setIsTryOnLoading(false);
+    }
+  };
 
 
   if (isLoading) {
@@ -297,7 +355,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
         </div>
       </div>
 
-      {/* AI Ambiance Section */}
+      {/* AI Product Ambiance Section */}
       <Separator />
       <Card className="shadow-lg border-accent/50">
         <CardHeader>
@@ -344,9 +402,98 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
           )}
         </CardContent>
       </Card>
-
-      {/* Removed AI Style Combinations Section */}
       
+      {/* AI Virtual Try-On Section */}
+      <Separator />
+      <Card className="shadow-lg border-accent/50">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline text-primary flex items-center">
+            <Shirt className="mr-2 h-6 w-6 text-accent" /> AI Virtual Try-On (Experimental)
+          </CardTitle>
+          <CardDescription>Upload your photo to see how this product might look on you! Results may vary.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {/* User Photo Upload and Preview */}
+            <div className="space-y-3">
+              <Label htmlFor="userPhotoUpload" className="text-base font-medium flex items-center">
+                <UploadCloud className="mr-2 h-5 w-5 text-accent" /> Upload Your Photo
+              </Label>
+              <Input 
+                id="userPhotoUpload" 
+                type="file" 
+                accept="image/jpeg, image/png, image/webp" 
+                onChange={handleUserPhotoChange} 
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              />
+              {userPhotoPreview && (
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-1">Your Photo Preview:</p>
+                  <div className="relative aspect-square w-full max-w-xs rounded-md overflow-hidden border shadow-inner bg-muted">
+                    <Image src={userPhotoPreview} alt="User photo preview" layout="fill" objectFit="contain" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Product Photo (for context) & Action Button */}
+            <div className="space-y-3">
+               <p className="text-base font-medium flex items-center">
+                <Wand2 className="mr-2 h-5 w-5 text-accent" /> Product: {product.name}
+              </p>
+              <div className="relative aspect-square w-full max-w-xs rounded-md overflow-hidden border shadow-inner bg-muted">
+                 <Image src={product.imageUrl} alt={product.name} layout="fill" objectFit="contain" data-ai-hint="product fashion" />
+              </div>
+              <Button 
+                onClick={handleGenerateTryOn} 
+                disabled={isTryOnLoading || !userPhotoPreview}
+                className="w-full bg-primary hover:bg-accent hover:text-accent-foreground mt-4 py-3 text-base"
+              >
+                {isTryOnLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Generating Try-On...
+                  </>
+                ) : (
+                  <>
+                    <Shirt className="mr-2 h-5 w-5" />
+                    Try On with AI
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Generated Image Display Area */}
+          {isTryOnLoading && (
+            <div className="mt-6 text-center space-y-2 p-6 border border-dashed rounded-md bg-muted/50">
+              <Loader2 className="h-10 w-10 animate-spin text-accent mx-auto" />
+              <p className="text-muted-foreground">Our AI is working its magic... This might take a moment.</p>
+              <p className="text-xs text-muted-foreground">(Image generation can take up to 15-30 seconds)</p>
+            </div>
+          )}
+          {tryOnError && !isTryOnLoading && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertCircle className="h-5 w-5" />
+              <AlertTitle className="text-lg">Try-On Generation Failed</AlertTitle>
+              <AlertDescription>{tryOnError}</AlertDescription>
+            </Alert>
+          )}
+          {generatedTryOnImage && !isTryOnLoading && !tryOnError && (
+            <div className="mt-6 space-y-3">
+              <h3 className="text-xl font-semibold text-primary text-center">Your AI Virtual Try-On!</h3>
+              <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden border-2 border-accent shadow-xl bg-muted">
+                <Image src={generatedTryOnImage} alt="AI generated virtual try-on" layout="fill" objectFit="contain" />
+              </div>
+               <p className="text-xs text-muted-foreground text-center">Note: This is an AI-generated image and is for illustrative purposes. Actual fit may vary.</p>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-4">
+            **Experimental Feature**: Virtual Try-On uses advanced AI. Results are for illustrative purposes and might not be perfectly accurate. Please upload a clear, well-lit photo of yourself. Supported image types: JPG, PNG, WebP. Max file size: 4MB.
+          </p>
+        </CardContent>
+      </Card>
+
       <Separator />
 
       <Accordion type="single" collapsible className="w-full" defaultValue="reviews">
