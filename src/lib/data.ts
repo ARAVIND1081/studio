@@ -18,16 +18,15 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') {
     return defaultValue;
   }
+  let storedValue: string | null = null;
   try {
-    const storedValue = localStorage.getItem(key);
+    storedValue = localStorage.getItem(key);
     if (storedValue) {
-      // Handle specific case where 'null' string might be stored for a null default
       if (storedValue === 'null' && defaultValue === null) {
         return null as T;
       }
       const parsedValue = JSON.parse(storedValue) as T;
       
-      // Enhanced type checking: only if defaultValue is not null
       if (defaultValue !== null) {
         if (Array.isArray(defaultValue) && !Array.isArray(parsedValue)) {
           console.warn(`Type mismatch for ${key} in localStorage. Expected array, got ${typeof parsedValue}. Resetting to default.`);
@@ -42,8 +41,12 @@ function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
     }
   } catch (error) {
     console.error(`Error loading or parsing ${key} from localStorage:`, error);
-    localStorage.removeItem(key); // Clear corrupted data
-    saveToLocalStorage(key, defaultValue); // Attempt to save default value back
+    if (key === PRODUCTS_STORAGE_KEY && storedValue) {
+        console.error("Failed to parse product data. Value from localStorage (first 500 chars):", storedValue.substring(0, 500));
+    }
+    // If parsing fails or type mismatch occurs, remove the potentially corrupted item and save the default.
+    localStorage.removeItem(key);
+    saveToLocalStorage(key, defaultValue); 
     return defaultValue; 
   }
   // If storedValue was null (key not found), save the default value and return it.
@@ -60,9 +63,9 @@ function saveToLocalStorage<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving ${key} to localStorage:`, error);
-    // This could be due to various reasons, including quota exceeded.
     if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22)) {
       console.warn(`LocalStorage quota exceeded for key "${key}". Changes may not be saved. Data size: ${JSON.stringify(value).length} bytes.`);
+      alert(`Warning: Could not save all data. Storage limit might be exceeded. Some changes, especially for large images, may not persist.`);
     }
   }
 }
@@ -128,7 +131,7 @@ function mapProductForConsistency(p: any): Product {
 
 
 // --- Product Data Initialization ---
-const DEFAULT_PRODUCTS_SEED_PRE_TAX: Omit<Product, 'price'> & { price: number }[] = [
+const DEFAULT_PRODUCTS_SEED_PRE_TAX: Omit<Product, 'id' | 'price' | 'rating' | 'specifications' | 'reviews' | 'images'> & { price: number, rating?: number, specifications?: ProductSpecification[], reviews?: Review[], images?: string[] }[] = [
   {
     id: '1', name: 'Elegant Smartwatch X1', description: 'A fusion of classic design and modern technology. Stay connected in style.', price: 29999.00, category: 'Electronics', imageUrl: 'https://placehold.co/800x600.png', images: ['https://placehold.co/800x600.png', 'https://placehold.co/800x600.png?1', 'https://placehold.co/800x600.png?2'], rating: 4.8, specifications: [ { name: 'Display', value: '1.4" AMOLED' }, { name: 'Battery Life', value: '7 days' }, { name: 'Water Resistance', value: '5 ATM' }, ], reviews: sampleReviews.map(r => ({...r})),
   }, {
@@ -211,10 +214,10 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newIdNumber = existingIds.length > 0 ? Math.max(0, ...existingIds) + 1 : 1;
   const newId = newIdNumber.toString();
 
-  const newProductRaw: Product = {
+  const newProductRaw: Omit<Product, 'id'> & { id: string } = {
     ...productInput,
     id: newId,
-    rating: productInput.rating ?? 0,
+    rating: productInput.rating ?? parseFloat((Math.random() * (5 - 3) + 3).toFixed(1)), // Ensure rating exists
     specifications: productInput.specifications ?? [],
     reviews: productInput.reviews ?? [],
     images: productInput.images && productInput.images.length > 0 ? productInput.images : (productInput.imageUrl ? [productInput.imageUrl] : ['https://placehold.co/600x400.png']),
@@ -235,32 +238,36 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   const existingProduct = store[productIndex];
   let updatedProductData: Product = { ...existingProduct, ...updates };
+  const defaultImg = 'https://placehold.co/600x400.png';
 
-  if (updates.images && Array.isArray(updates.images)) {
-    if (updates.images.length > 0) {
-      const validImages = updates.images.filter(img => typeof img === 'string' && img.trim() !== '');
+  if (updates.images !== undefined) { // if images key is part of updates
+    if (Array.isArray(updates.images) && updates.images.length > 0) {
+      const validImages = updates.images.filter(img => typeof img === 'string' && img.trim().startsWith('data:image'));
       if (validImages.length > 0) {
-        updatedProductData.imageUrl = validImages[0];
         updatedProductData.images = validImages;
-      } else {
-        const defaultImg = 'https://placehold.co/600x400.png';
-        updatedProductData.imageUrl = defaultImg;
+        updatedProductData.imageUrl = validImages[0];
+      } else { // Empty or all invalid images provided
         updatedProductData.images = [defaultImg];
+        updatedProductData.imageUrl = defaultImg;
       }
-    } else { 
-      const defaultImg = 'https://placehold.co/600x400.png';
-      updatedProductData.imageUrl = defaultImg;
+    } else { // updates.images is null, undefined, or empty array
       updatedProductData.images = [defaultImg];
+      updatedProductData.imageUrl = defaultImg;
     }
-  } else if (updates.imageUrl && (!updates.images || (Array.isArray(updates.images) && updates.images.length === 0))) {
-     if (typeof updates.imageUrl === 'string' && updates.imageUrl.trim() !== '') {
-        updatedProductData.images = [updates.imageUrl];
-     } else {
-        const defaultImg = 'https://placehold.co/600x400.png';
+  } else if (updates.imageUrl !== undefined) { // if only imageUrl is updated, and not images
+    if (typeof updates.imageUrl === 'string' && updates.imageUrl.trim().startsWith('data:image')) {
+        updatedProductData.imageUrl = updates.imageUrl;
+        // If images array didn't exist or was different, update it to reflect the new single imageUrl
+        if (!updatedProductData.images || updatedProductData.images[0] !== updates.imageUrl) {
+            updatedProductData.images = [updates.imageUrl];
+        }
+    } else { // Invalid imageUrl provided
         updatedProductData.imageUrl = defaultImg;
         updatedProductData.images = [defaultImg];
-     }
+    }
   }
+  // If neither images nor imageUrl are in updates, existing images/imageUrl are kept from spread,
+  // and mapProductForConsistency will handle them.
 
 
   store[productIndex] = mapProductForConsistency(updatedProductData); 
@@ -499,3 +506,4 @@ export function _resetAllData_USE_WITH_CAUTION() {
   }
 }
 
+    
