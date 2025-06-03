@@ -53,9 +53,12 @@ const productAmbianceFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    if (!output) {
-        throw new Error("Failed to generate product ambiance. The AI model did not return an output.");
+    if (!output || !output.ambiance) { // Also check if ambiance field itself is present
+        // Log the problematic input and (lack of) output for easier debugging
+        console.error('[productAmbianceFlow] AI model returned no structured output or missing ambiance field.', {input, receivedOutput: output});
+        throw new Error("Failed to generate product ambiance. The AI model did not return the expected output structure.");
     }
     return output;
   }
 );
+
