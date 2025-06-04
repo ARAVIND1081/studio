@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext'; // Import AuthProvider
 import { SiteSettingsProvider } from '@/context/SiteSettingsContext'; // Import SiteSettingsProvider
+import { ChatWidget } from '@/components/chat/ChatWidget'; // Import ChatWidget
 
 export const metadata: Metadata = {
   title: 'ShopSphere - Luxurious Online Shopping',
@@ -36,6 +37,7 @@ export default function RootLayout({
               </main>
               <Footer />
               <Toaster />
+              <ChatWidget /> {/* Add ChatWidget here */}
             </SiteSettingsProvider>
           </CartProvider>
         </AuthProvider>
