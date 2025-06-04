@@ -11,6 +11,7 @@ import { SiteSettingsProvider } from '@/context/SiteSettingsContext'; // Import 
 export const metadata: Metadata = {
   title: 'ShopSphere - Luxurious Online Shopping',
   description: 'Discover a world of elegance and style at ShopSphere.',
+  icons: null, // This will prevent Next.js from automatically using a favicon
 };
 
 export default function RootLayout({
