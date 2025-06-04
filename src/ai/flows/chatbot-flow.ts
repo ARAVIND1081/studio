@@ -54,8 +54,8 @@ Store Policies (mock data for your reference):
 Conversation History:
 {{#if chatHistory}}
 {{#each chatHistory}}
-{{#if (eq this.role "user")}}User: {{{this.content}}}{{/if}}
-{{#if (eq this.role "bot")}}Assistant: {{{this.content}}}{{/if}}
+{{#if this.isUser}}User: {{{this.content}}}{{/if}}
+{{#if this.isBot}}Assistant: {{{this.content}}}{{/if}}
 {{/each}}
 {{else}}
 No previous conversation history. This is the start of the conversation.
@@ -81,9 +81,15 @@ const chatbotFlow = ai.defineFlow(
   async (input: ChatbotInput) => {
     const siteEmailAddress = input.siteName.toLowerCase().replace(/\s+/g, '');
     
-    // Create an object to pass to the prompt, including the derived siteEmailAddress
+    const processedChatHistory = input.chatHistory?.map(message => ({
+      ...message,
+      isUser: message.role === 'user',
+      isBot: message.role === 'bot',
+    }));
+
     const promptData = {
       ...input,
+      chatHistory: processedChatHistory, // Use the processed history
       siteEmailAddress: siteEmailAddress,
     };
 
@@ -95,3 +101,4 @@ const chatbotFlow = ai.defineFlow(
     return output;
   }
 );
+
