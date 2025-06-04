@@ -9,7 +9,8 @@ import { getAllProducts, CATEGORIES } from '@/lib/data';
 import type { Product, Category } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SearchX } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { SearchX, Search } from 'lucide-react';
 
 const MAX_PRICE_DEFAULT_INR = 60000; // Adjusted for tax-inclusive prices (approx 50000 * 1.18)
 
@@ -22,6 +23,7 @@ export default function ShopPage() {
   });
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     setTimeout(() => {
@@ -33,18 +35,32 @@ export default function ShopPage() {
   const filteredAndSortedProducts = useMemo(() => {
     let filtered = allProducts;
 
+    // 1. Filter by search term
+    if (searchTerm.trim() !== '') {
+      const lowercasedSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(lowercasedSearchTerm) ||
+        product.description.toLowerCase().includes(lowercasedSearchTerm) ||
+        product.category.toLowerCase().includes(lowercasedSearchTerm)
+      );
+    }
+
+    // 2. Filter by category
     if (filters.category !== 'all') {
       filtered = filtered.filter(p => p.category === filters.category);
     }
 
+    // 3. Filter by price range
     filtered = filtered.filter(
       p => p.price >= filters.priceRange[0] && p.price <= filters.priceRange[1]
     );
 
+    // 4. Filter by rating
     if (filters.rating > 0) {
       filtered = filtered.filter(p => Math.floor(p.rating) >= filters.rating);
     }
 
+    // 5. Sort
     switch (sortOption) {
       case 'price-asc':
         return [...filtered].sort((a, b) => a.price - b.price);
@@ -59,7 +75,7 @@ export default function ShopPage() {
       default:
         return filtered;
     }
-  }, [allProducts, filters, sortOption]);
+  }, [allProducts, filters, sortOption, searchTerm]);
 
   if (isLoading) {
     return (
@@ -83,6 +99,17 @@ export default function ShopPage() {
         <p className="text-lg text-muted-foreground">
           Use the filters and sorting options to discover your next favorite item. All prices include tax.
         </p>
+      </div>
+
+      <div className="mb-6 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search products by name, category, or description..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 text-base rounded-md shadow-sm border-input focus:border-primary focus:ring-primary"
+        />
       </div>
       
       <div className="flex flex-col lg:flex-row lg:items-start gap-8">
@@ -109,7 +136,7 @@ export default function ShopPage() {
               <SearchX className="h-5 w-5 text-accent" />
               <AlertTitle className="font-headline text-accent">No Products Found</AlertTitle>
               <AlertDescription>
-                We couldn't find any products matching your current filters. Try adjusting your criteria or check back later!
+                We couldn't find any products matching your current search and filters. Try adjusting your criteria or check back later!
               </AlertDescription>
             </Alert>
           )}
