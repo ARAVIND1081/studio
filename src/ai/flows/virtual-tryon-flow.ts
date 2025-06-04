@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const VirtualTryOnInputSchema = z.object({
+const VirtualTryOnInputSchema = z.object({
   userPhotoDataUri: z.string().describe("A photo of the user, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   productPhotoUrl: z.string().describe('The URL of the product image (can be HTTP/HTTPS or a data URI).'),
   productName: z.string().describe('The name of the product.'),
@@ -19,7 +19,7 @@ export const VirtualTryOnInputSchema = z.object({
 });
 export type VirtualTryOnInput = z.infer<typeof VirtualTryOnInputSchema>;
 
-export const VirtualTryOnOutputSchema = z.object({
+const VirtualTryOnOutputSchema = z.object({
   generatedImageDataUri: z.string().describe('The generated image as a data URI.'),
 });
 export type VirtualTryOnOutput = z.infer<typeof VirtualTryOnOutputSchema>;
@@ -103,3 +103,4 @@ Product Photo (second image): The product to integrate.
     }
   }
 );
+
