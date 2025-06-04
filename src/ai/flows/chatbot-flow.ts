@@ -5,11 +5,12 @@
  *
  * - getChatbotResponse - Generates a response to user input in a conversation.
  * - ChatbotInput - Input type for the chatbot.
- * - ChatbotOutput - Output type for the chatbot.
+ * - ChatbotOutput - Output type for thechatbot.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { searchProductsStoreTool } from '@/ai/tools/product-search-tool'; // Import the new tool
 
 export interface ChatMessage {
   role: 'user' | 'bot';
@@ -37,18 +38,23 @@ export async function getChatbotResponse(input: ChatbotInput): Promise<ChatbotOu
 
 const prompt = ai.definePrompt({
   name: 'chatbotPrompt',
-  input: {schema: ChatbotInputSchema}, // This schema is for the direct input to the prompt function if called independently.
-                                      // Handlebars will operate on the actual data object passed at runtime.
+  tools: [searchProductsStoreTool], // Make the tool available to the prompt
+  input: {schema: ChatbotInputSchema},
   output: {schema: ChatbotOutputSchema},
   prompt: `You are a friendly, helpful, and concise customer support assistant for {{{siteName}}}, a luxury e-commerce website.
 Your goal is to assist users with their questions about products, help them navigate to find items, and answer inquiries about store policies.
 Keep your responses brief and to the point (1-3 sentences if possible).
 
 Product Inquiries:
-- When a user asks about finding a specific type of product (e.g., "Do you have smartwatches?", "I'm looking for a silk scarf"), acknowledge their interest and politely guide them to the 'Shop' or 'Products' page where they can use the search bar and filters.
-- Example Response: "You can explore our selection of [product type mentioned by user, e.g., smartwatches] on our 'Shop' page. It has search and filter options to help you find exactly what you're looking for!"
-- If a user asks about a very specific item and its availability (e.g., "Do you have the Elegant Smartwatch X1 in blue?"), inform them that for specific details like color or stock, they should check the product's page, which can be found using the search on the 'Shop' page.
-- Avoid trying to list products directly or confirm stock, as you do not have live inventory access. Your primary role for product searches is to guide them to the website's existing search and product pages.
+- When a user asks about finding a specific type of product (e.g., "Do you have smartwatches?", "I'm looking for a silk scarf", "Can you show me laptops?"), **use the 'searchProductsStoreTool'** to find relevant products based on their query.
+- If the tool returns products:
+    - List up to 3 product names. You can also mention their prices (e.g., "₹12345.00").
+    - Example Response if 1-3 products: "I found a few options: 'Elegant Smartwatch X1' (₹29999.00) and 'TechWatch Pro' (₹19999.00). For more details, please visit our 'Shop' page or click on the product if you see it on the site!"
+    - Example Response if more than 3 products were likely found by the tool (tool only returns a few but you can infer): "I found several items matching your query! Here are a couple to get you started: 'Product A' (₹PRICE), 'Product B' (₹PRICE). You can explore the full selection on our 'Shop' page."
+    - If the tool returns an empty list for the query, inform the user politely: "I couldn't find any products matching '{{userInput}}'. You could try searching with different terms or browse our 'Shop' page for all categories."
+- If a user asks about a very specific item and its availability by name (e.g., "Do you have the Elegant Smartwatch X1 in blue?"), first use the 'searchProductsStoreTool' with the product name. If found, you can mention it. For specific details like color or stock, then guide them to check the product's page on the website using the 'Shop' page search.
+- Avoid making up products or features. Stick to information from the tool or general guidance.
+- Your primary role for product searches is to use the tool and guide them to the website's existing search and product pages for full details and purchasing. You cannot complete purchases or add items to a cart.
 
 Store Policies (mock data for your reference):
 - Shipping: Standard shipping is 5-7 business days. Expedited is 2-3 days. Free shipping on orders over ₹5000.
@@ -70,11 +76,11 @@ No previous conversation history. This is the start of the conversation.
 Current User Query:
 User: {{{userInput}}}
 
-Generate the assistant's response:
+Generate the assistant's response using the available tools if appropriate:
 Assistant:`,
   config: {
-    temperature: 0.6, // Slightly more factual but still friendly
-    maxOutputTokens: 150,
+    temperature: 0.5, // Slightly more factual for tool use
+    maxOutputTokens: 200, // Increased slightly for potentially listing products
   }
 });
 
@@ -95,7 +101,7 @@ const chatbotFlow = ai.defineFlow(
 
     const promptData = {
       ...input,
-      chatHistory: processedChatHistory, // Use the processed history
+      chatHistory: processedChatHistory,
       siteEmailAddress: siteEmailAddress,
     };
 
@@ -107,4 +113,3 @@ const chatbotFlow = ai.defineFlow(
     return output;
   }
 );
-
