@@ -90,3 +90,21 @@ export interface Order {
   orderDate: string; // ISO string for date/time
   status: OrderStatus;
 }
+
+// Scheduled Video Call related types
+export type ScheduledCallStatus = 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+export const SCHEDULED_CALL_STATUSES: ScheduledCallStatus[] = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+
+export interface ScheduledCall {
+  id: string;
+  productId: string;
+  productName: string;
+  productImageUrl: string;
+  userId?: string;
+  requesterName: string; // Can be from User.name or manually entered
+  requesterEmail?: string; // Manually entered if not logged in
+  requestedDateTime: string; // ISO string
+  status: ScheduledCallStatus;
+  notes?: string;
+  createdAt: string; // ISO string
+}

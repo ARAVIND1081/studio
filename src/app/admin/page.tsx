@@ -8,18 +8,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus } from "@/lib/data"; // Removed getSiteSettings, updateSiteSettings
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info } from 'lucide-react';
-import type { Product, SiteSettings, Order, OrderStatus } from "@/types";
-import { ORDER_STATUSES } from "@/types";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus, getAllScheduledCalls, updateScheduledCallStatus } from "@/lib/data"; // Removed getSiteSettings, updateSiteSettings
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info, Video, RefreshCcw } from 'lucide-react';
+import type { Product, SiteSettings, Order, OrderStatus, ScheduledCall, ScheduledCallStatus } from "@/types";
+import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from "@/types";
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { useSiteSettings } from "@/context/SiteSettingsContext"; // Import useSiteSettings
+import { useSiteSettings } from "@/context/SiteSettingsContext"; 
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { format } from 'date-fns';
+import { Badge } from "@/components/ui/badge";
 
 
 const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
@@ -43,13 +45,15 @@ const initialNewProductFormState: AdminProductFormInput = {
 
 export default function AdminPage() {
   const { currentUser, isLoading: authIsLoading, logout: mainAppLogout } = useAuth();
-  const { siteSettings, updateSettings: updateContextSiteSettings, isLoading: settingsLoading } = useSiteSettings(); // Use context
+  const { siteSettings, updateSettings: updateContextSiteSettings, isLoading: settingsLoading } = useSiteSettings(); 
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderDetailsDialogOpen, setIsOrderDetailsDialogOpen] = useState(false);
+  const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
+
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -72,6 +76,7 @@ export default function AdminPage() {
     if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshOrders();
+      refreshScheduledCalls();
     }
   }, [isAuthorizedAdminUser]);
 
@@ -98,6 +103,10 @@ export default function AdminPage() {
 
   const refreshOrders = () => {
     setOrders(getAllOrders());
+  };
+
+  const refreshScheduledCalls = () => {
+    setScheduledCalls(getAllScheduledCalls());
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -162,7 +171,6 @@ export default function AdminPage() {
       console.error("Error converting files to Data URIs:", error);
       toast({ title: "Image Error", description: "Could not process selected image(s).", variant: "destructive" });
     }
-    // Reset file input to allow re-selection of same files if needed (UX improvement)
     event.target.value = '';
   };
 
@@ -340,6 +348,26 @@ export default function AdminPage() {
     }
   };
 
+  const handleScheduledCallStatusChange = (callId: string, newStatus: ScheduledCallStatus) => {
+    const updatedCall = updateScheduledCallStatus(callId, newStatus);
+    if (updatedCall) {
+        refreshScheduledCalls();
+        toast({ title: "Call Status Updated", description: `Call request for ${updatedCall.productName} is now ${newStatus}.` });
+    } else {
+        toast({ title: "Error", description: "Failed to update call status.", variant: "destructive" });
+    }
+  };
+
+  const getCallStatusBadgeVariant = (status: ScheduledCallStatus): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+        case 'Pending': return 'outline'; // Yellowish
+        case 'Confirmed': return 'default'; // Blueish/Primary
+        case 'Completed': return 'secondary'; // Greenish
+        case 'Cancelled': return 'destructive'; // Reddish
+        default: return 'outline';
+    }
+  };
+
 
   if (authIsLoading || settingsLoading) {
     return (
@@ -390,9 +418,9 @@ export default function AdminPage() {
         {siteSettings.contentManagementInfoText || "Manage your products, site settings, and page content from here."}
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {/* Product Management Card */}
-        <Card className="shadow-lg">
+        <Card className="shadow-lg lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
               <Edit3 className="mr-2 h-6 w-6 text-accent"/> Product Management
@@ -547,7 +575,7 @@ export default function AdminPage() {
         </Card>
 
         {/* Site Settings Card */}
-        <Card className="shadow-lg">
+        <Card className="shadow-lg lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
               <Settings className="mr-2 h-6 w-6 text-accent"/> Site Settings
@@ -591,67 +619,9 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Order Management Card */}
-        <Card className="shadow-lg md:col-span-2">
-            <CardHeader>
-                <CardTitle className="flex items-center text-2xl font-headline">
-                    <ShoppingBag className="mr-2 h-6 w-6 text-accent"/> Order Management
-                </CardTitle>
-                <CardDescription>
-                    View and manage customer orders.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {orders.length === 0 ? (
-                    <p className="text-muted-foreground">No orders found yet.</p>
-                ) : (
-                    <ScrollArea className="max-h-96 pr-2">
-                        <div className="space-y-4">
-                            {orders.map(order => (
-                                <div key={order.id} className="p-4 bg-muted/50 rounded-md space-y-2">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-semibold text-primary">Order #{order.orderNumber}</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                {new Date(order.orderDate).toLocaleDateString()} - {order.customerName}
-                                            </p>
-                                        </div>
-                                        <p className="text-lg font-semibold text-accent">₹{order.totalAmount.toFixed(2)}</p>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Label htmlFor={`status-${order.id}`} className="text-sm">Status:</Label>
-                                            <Select
-                                                value={order.status}
-                                                onValueChange={(newStatus: OrderStatus) => handleOrderStatusChange(order.id, newStatus)}
-                                            >
-                                                <SelectTrigger id={`status-${order.id}`} className="h-8 w-[150px] text-xs">
-                                                    <SelectValue placeholder="Change status" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {ORDER_STATUSES.map(status => (
-                                                        <SelectItem key={status} value={status} className="text-xs">
-                                                            {status}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <Button variant="outline" size="sm" onClick={() => handleViewOrderDetails(order)}>
-                                            <Eye className="mr-1 h-4 w-4" /> View Details
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                )}
-            </CardContent>
-        </Card>
         
         {/* Page Content Management Card */}
-         <Card className="shadow-lg md:col-span-2">
+         <Card className="shadow-lg lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl font-headline">
               <FileText className="mr-2 h-6 w-6 text-accent"/> Content Management
@@ -778,6 +748,131 @@ export default function AdminPage() {
              </div>
           </CardContent>
         </Card>
+
+        {/* Order Management Card */}
+        <Card className="shadow-lg md:col-span-2 lg:col-span-3">
+            <CardHeader>
+                <CardTitle className="flex items-center text-2xl font-headline">
+                    <ShoppingBag className="mr-2 h-6 w-6 text-accent"/> Order Management
+                </CardTitle>
+                <CardDescription>
+                    View and manage customer orders.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {orders.length === 0 ? (
+                    <p className="text-muted-foreground">No orders found yet.</p>
+                ) : (
+                    <ScrollArea className="max-h-96 pr-2">
+                        <div className="space-y-4">
+                            {orders.map(order => (
+                                <div key={order.id} className="p-4 bg-muted/50 rounded-md space-y-2">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-semibold text-primary">Order #{order.orderNumber}</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                {new Date(order.orderDate).toLocaleDateString()} - {order.customerName}
+                                            </p>
+                                        </div>
+                                        <p className="text-lg font-semibold text-accent">₹{order.totalAmount.toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor={`status-${order.id}`} className="text-sm">Status:</Label>
+                                            <Select
+                                                value={order.status}
+                                                onValueChange={(newStatus: OrderStatus) => handleOrderStatusChange(order.id, newStatus)}
+                                            >
+                                                <SelectTrigger id={`status-${order.id}`} className="h-8 w-[150px] text-xs">
+                                                    <SelectValue placeholder="Change status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ORDER_STATUSES.map(status => (
+                                                        <SelectItem key={status} value={status} className="text-xs">
+                                                            {status}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={() => handleViewOrderDetails(order)}>
+                                            <Eye className="mr-1 h-4 w-4" /> View Details
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                )}
+            </CardContent>
+        </Card>
+
+        {/* Scheduled Video Calls Card */}
+        <Card className="shadow-lg md:col-span-2 lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="flex items-center text-2xl font-headline">
+                        <Video className="mr-2 h-6 w-6 text-accent"/> Video Call Requests
+                    </CardTitle>
+                    <CardDescription>
+                        Manage scheduled video viewing requests.
+                    </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={refreshScheduledCalls}>
+                    <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {scheduledCalls.length === 0 ? (
+                    <p className="text-muted-foreground">No video call requests found.</p>
+                ) : (
+                    <ScrollArea className="max-h-[400px] pr-2">
+                        <div className="space-y-4">
+                            {scheduledCalls.map(call => (
+                                <div key={call.id} className="p-4 bg-muted/50 rounded-md space-y-3">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <Image src={call.productImageUrl} alt={call.productName} width={50} height={40} className="rounded object-cover aspect-[5/4]" data-ai-hint="product thumbnail" />
+                                            <div>
+                                                <h4 className="font-semibold text-primary">{call.productName}</h4>
+                                                <p className="text-xs text-muted-foreground">Req by: {call.requesterName} ({call.requesterEmail || 'No email'})</p>
+                                            </div>
+                                        </div>
+                                        <Badge variant={getCallStatusBadgeVariant(call.status)} className="text-xs whitespace-nowrap mt-1 sm:mt-0">
+                                            {call.status}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-sm">
+                                        <p><strong>Requested:</strong> {format(new Date(call.requestedDateTime), "PPP 'at' h:mm a")}</p>
+                                        {call.notes && <p className="text-xs text-muted-foreground mt-1"><strong>Notes:</strong> {call.notes}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor={`call-status-${call.id}`} className="text-xs">Status:</Label>
+                                        <Select
+                                            value={call.status}
+                                            onValueChange={(newStatus: ScheduledCallStatus) => handleScheduledCallStatusChange(call.id, newStatus)}
+                                        >
+                                            <SelectTrigger id={`call-status-${call.id}`} className="h-8 w-[150px] text-xs">
+                                                <SelectValue placeholder="Update status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SCHEDULED_CALL_STATUSES.map(status => (
+                                                    <SelectItem key={status} value={status} className="text-xs">
+                                                        {status}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                     <p className="text-xs text-muted-foreground text-right">Received: {format(new Date(call.createdAt), "PPp")}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                )}
+            </CardContent>
+        </Card>
+        
       </div>
 
       {/* Order Details Dialog */}

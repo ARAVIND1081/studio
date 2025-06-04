@@ -3,13 +3,14 @@
 
 import { use, useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import Image from 'next/image';
-import { getProductById, addProductReview, type ReviewCreateInput } from '@/lib/data';
-import type { Product, Review } from '@/types';
+import { getProductById, addProductReview, type ReviewCreateInput, addScheduledCall, type ScheduledCallCreateInput } from '@/lib/data';
+import type { Product, Review, ScheduledCall } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2 } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2, Video, CalendarDays as CalendarIconLucide } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ProductRecommendations } from '@/components/products/ProductRecommendations';
 import Link from 'next/link';
@@ -23,6 +24,10 @@ import { cn } from '@/lib/utils';
 import { generateProductAmbiance, type ProductAmbianceInput } from '@/ai/flows/product-ambiance-flow.ts';
 import { generateVirtualTryOnImage, type VirtualTryOnInput, type VirtualTryOnOutput } from '@/ai/flows/virtual-tryon-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
@@ -45,15 +50,23 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   const [isAmbianceLoading, setIsAmbianceLoading] = useState(false);
   const [ambianceError, setAmbianceError] = useState<string | null>(null);
 
-  // State for AI Virtual Try-On
   const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null);
   const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null);
   const [generatedTryOnImage, setGeneratedTryOnImage] = useState<string | null>(null);
   const [isTryOnLoading, setIsTryOnLoading] = useState(false);
   const [tryOnError, setTryOnError] = useState<string | null>(null);
 
+  // State for Schedule Video Call
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleRequesterName, setScheduleRequesterName] = useState('');
+  const [scheduleRequesterEmail, setScheduleRequesterEmail] = useState('');
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState(''); // e.g., "14:30"
+  const [scheduleNotes, setScheduleNotes] = useState('');
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
 
   const { addToCart } = useCart();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -64,7 +77,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     setAmbianceText(null);
     setIsAmbianceLoading(false);
     setAmbianceError(null);
-    // Reset Try-On state on product change
     setUserPhotoPreview(null);
     setUserPhotoFile(null);
     setGeneratedTryOnImage(null);
@@ -93,6 +105,14 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      setScheduleRequesterName(currentUser.name || '');
+      setScheduleRequesterEmail(currentUser.email || '');
+    }
+  }, [currentUser, isScheduleDialogOpen]);
+
 
   const handleAddToCart = () => {
     if (product) {
@@ -213,7 +233,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   };
 
   const handleGenerateTryOn = async () => {
-    if (!userPhotoPreview || !product) { // Check userPhotoPreview which holds the Data URI
+    if (!userPhotoPreview || !product) { 
       toast({ title: "Missing Photo", description: "Please upload your photo first.", variant: "destructive" });
       return;
     }
@@ -225,7 +245,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     try {
       const input: VirtualTryOnInput = {
         userPhotoDataUri: userPhotoPreview,
-        productPhotoUrl: product.imageUrl, // This can be an http/https URL or a Data URI
+        productPhotoUrl: product.imageUrl, 
         productName: product.name,
         productCategory: product.category,
       };
@@ -239,6 +259,47 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     } finally {
       setIsTryOnLoading(false);
     }
+  };
+
+  const handleScheduleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!product) return;
+    if (!currentUser && (!scheduleRequesterName.trim() || !scheduleRequesterEmail.trim())) {
+        toast({ title: "Missing Information", description: "Please provide your name and email.", variant: "destructive" });
+        return;
+    }
+    if (!scheduleDate || !scheduleTime) {
+        toast({ title: "Date and Time Required", description: "Please select a preferred date and time.", variant: "destructive" });
+        return;
+    }
+    
+    setIsSubmittingSchedule(true);
+    const [hours, minutes] = scheduleTime.split(':').map(Number);
+    const requestedDateTime = new Date(scheduleDate);
+    requestedDateTime.setHours(hours, minutes, 0, 0);
+
+    const callInput: ScheduledCallCreateInput = {
+        productId: product.id,
+        productName: product.name,
+        productImageUrl: product.imageUrl,
+        userId: currentUser?.id,
+        requesterName: currentUser?.name || scheduleRequesterName,
+        requesterEmail: currentUser?.email || scheduleRequesterEmail,
+        requestedDateTime: requestedDateTime.toISOString(),
+        notes: scheduleNotes,
+    };
+
+    addScheduledCall(callInput);
+    toast({ title: "Request Submitted!", description: "We've received your video call request and will be in touch soon." });
+    setIsScheduleDialogOpen(false);
+    setScheduleDate(undefined);
+    setScheduleTime('');
+    setScheduleNotes('');
+    if (!currentUser) {
+        setScheduleRequesterName('');
+        setScheduleRequesterEmail('');
+    }
+    setIsSubmittingSchedule(false);
   };
 
 
@@ -295,7 +356,6 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
               </Button>
             </>
           )}
-           {/* Thumbnails */}
           {displayImages.length > 1 && (
             <div className="mt-4">
               <ScrollArea className="w-full whitespace-nowrap rounded-md">
@@ -352,6 +412,82 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
               <Zap className="mr-2 h-5 w-5" /> Buy Now
             </Button>
           </div>
+           {/* Schedule Video Call Button */}
+          <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 hover:text-primary transition-colors duration-300 text-lg py-3 px-8">
+                <Video className="mr-2 h-5 w-5" /> Schedule a Live Video Viewing
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Schedule Video Viewing for {product.name}</DialogTitle>
+                <DialogDescription>
+                  Select a preferred date and time. We'll contact you to confirm.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleScheduleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                {!currentUser && (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="scheduleRequesterName">Your Name</Label>
+                      <Input id="scheduleRequesterName" value={scheduleRequesterName} onChange={(e) => setScheduleRequesterName(e.target.value)} required />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="scheduleRequesterEmail">Your Email</Label>
+                      <Input id="scheduleRequesterEmail" type="email" value={scheduleRequesterEmail} onChange={(e) => setScheduleRequesterEmail(e.target.value)} required />
+                    </div>
+                  </>
+                )}
+                 {currentUser && (
+                    <p className="text-sm text-muted-foreground">Requesting as: <span className="font-medium text-foreground">{currentUser.name || currentUser.email}</span></p>
+                 )}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <Label htmlFor="scheduleDate">Preferred Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                id="scheduleDate"
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !scheduleDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                {scheduleDate ? format(scheduleDate, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={scheduleDate}
+                                onSelect={setScheduleDate}
+                                initialFocus
+                                disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1))} // Disable past dates
+                            />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="scheduleTime">Preferred Time</Label>
+                        <Input id="scheduleTime" type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} required />
+                    </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="scheduleNotes">Optional Notes (e.g., specific things to see)</Label>
+                  <Textarea id="scheduleNotes" value={scheduleNotes} onChange={(e) => setScheduleNotes(e.target.value)} />
+                </div>
+                <DialogFooter className="pt-4">
+                  <Button type="submit" disabled={isSubmittingSchedule} className="bg-primary hover:bg-accent hover:text-accent-foreground">
+                    {isSubmittingSchedule ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>) : "Submit Request"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
         </div>
       </div>
 

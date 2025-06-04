@@ -1,6 +1,6 @@
 
-import type { Product, Category, Review, ProductSpecification, SiteSettings, User, Order, OrderStatus, OrderItem, ShippingAddress } from '@/types';
-import { ORDER_STATUSES } from '@/types';
+import type { Product, Category, Review, ProductSpecification, SiteSettings, User, Order, OrderStatus, OrderItem, ShippingAddress, ScheduledCall, ScheduledCallStatus } from '@/types';
+import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from '@/types';
 
 // Keep CATEGORIES exported as it's static data
 export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
@@ -10,6 +10,7 @@ const PRODUCTS_STORAGE_KEY = 'shopSphereProducts';
 const SETTINGS_STORAGE_KEY = 'shopSphereSettings';
 const USERS_STORAGE_KEY = 'shopSphereUsers';
 const ORDERS_STORAGE_KEY = 'shopSphereOrders';
+const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls';
 
 const TAX_RATE = 0.18; // 18% Tax Rate
 
@@ -488,22 +489,67 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
   };
 };
 
+// --- Scheduled Call Management ---
+const DEFAULT_SCHEDULED_CALLS_SEED: ScheduledCall[] = [];
+let _scheduledCallsData: ScheduledCall[] | null = null;
+
+function getScheduledCallsDataStore(): ScheduledCall[] {
+  if (_scheduledCallsData === null) {
+    _scheduledCallsData = loadFromLocalStorage<ScheduledCall[]>(SCHEDULED_CALLS_STORAGE_KEY, [...DEFAULT_SCHEDULED_CALLS_SEED]);
+  }
+  return _scheduledCallsData;
+}
+
+export const getAllScheduledCalls = (): ScheduledCall[] => {
+  const store = getScheduledCallsDataStore();
+  // Sort by creation date, newest first
+  return [...store].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt'>;
+
+export const addScheduledCall = (callInput: ScheduledCallCreateInput): ScheduledCall => {
+  const store = getScheduledCallsDataStore();
+  const newId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const newCall: ScheduledCall = {
+    ...callInput,
+    id: newId,
+    status: 'Pending',
+    createdAt: new Date().toISOString(),
+  };
+  store.unshift(newCall); // Add to the beginning of the array
+  saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
+  return { ...newCall };
+};
+
+export const updateScheduledCallStatus = (callId: string, newStatus: ScheduledCallStatus): ScheduledCall | undefined => {
+  const store = getScheduledCallsDataStore();
+  const callIndex = store.findIndex(c => c.id === callId);
+  if (callIndex === -1) {
+    return undefined;
+  }
+  store[callIndex].status = newStatus;
+  saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
+  return { ...store[callIndex] };
+};
+
+
 export function _resetAllData_USE_WITH_CAUTION() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(PRODUCTS_STORAGE_KEY);
     localStorage.removeItem(SETTINGS_STORAGE_KEY);
     localStorage.removeItem(USERS_STORAGE_KEY);
     localStorage.removeItem(ORDERS_STORAGE_KEY);
+    localStorage.removeItem(SCHEDULED_CALLS_STORAGE_KEY);
     
     _productsData = null;
     _siteSettingsData = null;
     _usersData = null;
     _ordersData = null;
+    _scheduledCallsData = null;
     
     console.warn("All ShopSphere localStorage data has been cleared and in-memory stores reset. Please refresh or navigate to re-initialize with defaults.");
   } else {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
-
-    
