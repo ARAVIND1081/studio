@@ -59,7 +59,7 @@ export function Header() {
             <ListOrdered className="mr-1 h-4 w-4" /> My Orders
           </Link>
           <Link href="/my-video-calls" className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
-            <Video className="mr-1 h-4 w-4" /> My Video Calls
+            <Video className="mr-1 h-4 w-4" /> Requests
           </Link>
         </>
       )}
@@ -95,7 +95,7 @@ export function Header() {
           </SheetClose>
           <SheetClose asChild>
             <Link href="/my-video-calls" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
-              <Video className="mr-1 h-4 w-4" /> My Video Calls
+              <Video className="mr-1 h-4 w-4" /> Requests
             </Link>
           </SheetClose>
         </>
