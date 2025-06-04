@@ -37,7 +37,8 @@ export async function getChatbotResponse(input: ChatbotInput): Promise<ChatbotOu
 
 const prompt = ai.definePrompt({
   name: 'chatbotPrompt',
-  input: {schema: ChatbotInputSchema},
+  input: {schema: ChatbotInputSchema}, // This schema is for the direct input to the prompt function if called independently.
+                                      // Handlebars will operate on the actual data object passed at runtime.
   output: {schema: ChatbotOutputSchema},
   prompt: `You are a friendly, helpful, and concise customer support assistant for {{{siteName}}}, a luxury e-commerce website.
 Your goal is to assist users with their questions about products, store policies, and general inquiries.
@@ -48,7 +49,7 @@ Store Policies (mock data for your reference):
 - Returns: 30-day return policy for unused items in original packaging. Contact support to initiate a return.
 - Product Availability: If a product is out of stock, the user can request to be notified.
 - Payment Methods: We accept Credit/Debit Cards, UPI, Net Banking, and Cash on Delivery.
-- Contact: Users can reach support via the contact page or by emailing support@{{siteName.toLowerCase().replace(/\s+/g, '')}}.com.
+- Contact: Users can reach support via the contact page or by emailing support@{{siteEmailAddress}}.com.
 
 Conversation History:
 {{#if chatHistory}}
@@ -78,7 +79,15 @@ const chatbotFlow = ai.defineFlow(
     outputSchema: ChatbotOutputSchema,
   },
   async (input: ChatbotInput) => {
-    const {output} = await prompt(input);
+    const siteEmailAddress = input.siteName.toLowerCase().replace(/\s+/g, '');
+    
+    // Create an object to pass to the prompt, including the derived siteEmailAddress
+    const promptData = {
+      ...input,
+      siteEmailAddress: siteEmailAddress,
+    };
+
+    const {output} = await prompt(promptData);
     if (!output || !output.botResponse) {
         console.error('[chatbotFlow] AI model returned no structured output or missing botResponse field.', {input, receivedOutput: output});
         return { botResponse: "I'm sorry, I encountered a hiccup. Could you please rephrase or try again?" };
