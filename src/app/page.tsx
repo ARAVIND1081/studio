@@ -25,11 +25,10 @@ export default function HomePage() {
   useEffect(() => {
     const fetchProducts = () => {
       setIsLoadingProducts(true);
-      setTimeout(() => {
-        const allProducts = getAllProducts();
-        setDisplayedProducts(allProducts.slice(0, HOME_PAGE_PRODUCT_LIMIT)); 
-        setIsLoadingProducts(false);
-      }, 500); 
+      // Removed setTimeout
+      const allProducts = getAllProducts();
+      setDisplayedProducts(allProducts.slice(0, HOME_PAGE_PRODUCT_LIMIT)); 
+      setIsLoadingProducts(false);
     };
     
     if (!settingsLoading) {

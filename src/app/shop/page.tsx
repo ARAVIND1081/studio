@@ -26,10 +26,9 @@ export default function ShopPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setAllProducts(getAllProducts()); 
-      setIsLoading(false);
-    }, 500); 
+    // Removed setTimeout
+    setAllProducts(getAllProducts()); 
+    setIsLoading(false);
   }, []);
 
   const filteredAndSortedProducts = useMemo(() => {
