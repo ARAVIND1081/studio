@@ -506,6 +506,13 @@ export const getAllScheduledCalls = (): ScheduledCall[] => {
   return [...store].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
+export const getScheduledCallsByUserId = (userId: string): ScheduledCall[] => {
+  const store = getScheduledCallsDataStore();
+  return store
+    .filter(call => call.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
 export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt'>;
 
 export const addScheduledCall = (callInput: ScheduledCallCreateInput): ScheduledCall => {
@@ -553,3 +560,4 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+

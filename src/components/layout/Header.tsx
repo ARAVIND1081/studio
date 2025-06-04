@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Shield, LogIn, UserPlus, LogOut, UserCircle2, ListOrdered, Menu } from 'lucide-react';
+import { ShoppingCart, Shield, LogIn, UserPlus, LogOut, UserCircle2, ListOrdered, Menu, Video } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,9 +54,14 @@ export function Header() {
         Contact
       </Link>
       {mounted && currentUser && (
-        <Link href="/my-orders" className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
-          <ListOrdered className="mr-1 h-4 w-4" /> My Orders
-        </Link>
+        <>
+          <Link href="/my-orders" className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
+            <ListOrdered className="mr-1 h-4 w-4" /> My Orders
+          </Link>
+          <Link href="/my-video-calls" className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
+            <Video className="mr-1 h-4 w-4" /> My Video Calls
+          </Link>
+        </>
       )}
       <Link href="/admin" className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
         <Shield className="mr-1 h-4 w-4" /> Admin
@@ -82,11 +87,18 @@ export function Header() {
         </Link>
       </SheetClose>
       {mounted && currentUser && (
-        <SheetClose asChild>
-          <Link href="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
-            <ListOrdered className="mr-1 h-4 w-4" /> My Orders
-          </Link>
-        </SheetClose>
+        <>
+          <SheetClose asChild>
+            <Link href="/my-orders" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
+              <ListOrdered className="mr-1 h-4 w-4" /> My Orders
+            </Link>
+          </SheetClose>
+          <SheetClose asChild>
+            <Link href="/my-video-calls" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
+              <Video className="mr-1 h-4 w-4" /> My Video Calls
+            </Link>
+          </SheetClose>
+        </>
       )}
       <SheetClose asChild>
         <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="text-foreground hover:text-accent transition-colors flex items-center py-2 md:py-0">
