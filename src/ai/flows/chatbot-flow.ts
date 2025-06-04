@@ -72,7 +72,7 @@ Store Policies (for your reference, respond based on this information):
 - Returns: 30-day return policy for unused items in original packaging. Contact support to initiate a return.
 - Product Availability (general policy): If a product is out of stock on its page, users can usually find an option to be notified when it's back.
 - Payment Methods: We accept Credit/Debit Cards, UPI, Net Banking, and Cash on Delivery.
-- Contact: For complex issues, users can reach support via the contact page or by emailing support@{{siteEmailAddress}}.com.
+- Contact: For complex issues, users can reach support via the contact page or by emailing support@{{{siteEmailAddress}}}.com.
 
 Conversation History:
 {{#if chatHistory}}
@@ -101,7 +101,7 @@ const chatbotFlow = ai.defineFlow(
     inputSchema: ChatbotInputSchema,
     outputSchema: ChatbotOutputSchema,
   },
-  async (input: ChatbotInput) => {
+  async (input: ChatbotInput): Promise<ChatbotOutput> => {
     const siteEmailAddress = input.siteName.toLowerCase().replace(/\s+/g, '');
     
     const processedChatHistory = input.chatHistory?.map(message => ({
@@ -116,12 +116,29 @@ const chatbotFlow = ai.defineFlow(
       siteEmailAddress: siteEmailAddress,
     };
 
-    const {output} = await prompt(promptData);
-    if (!output || !output.botResponse) {
-        console.error('[chatbotFlow] AI model returned no structured output or missing botResponse field.', {input, receivedOutput: output});
+    let outputFromPrompt: ChatbotOutput | null = null;
+    try {
+      const result = await prompt(promptData);
+      // result.output can be null if Zod parsing of a valid model string response failed
+      outputFromPrompt = result.output; 
+    } catch (e) {
+      // This catch block handles errors thrown by prompt() itself,
+      // e.g., network errors, or fundamental model response issues (like root null)
+      // before Zod parsing of the 'output' field of the result can even occur.
+      console.error('[chatbotFlow] Error during prompt() execution:', e, {inputDetails: input});
+      // outputFromPrompt remains null, the fallback below will be triggered
+    }
+
+    // This unified check now handles:
+    // 1. prompt() threw an error (outputFromPrompt is null because of the catch block).
+    // 2. prompt() resolved, but result.output was null (Zod parsing of a model string failed).
+    // 3. prompt() resolved, result.output was an object, but didn't have the botResponse field.
+    if (!outputFromPrompt || !outputFromPrompt.botResponse) {
+        console.error('[chatbotFlow] Fallback: No valid botResponse obtained. This could be due to a prompt execution error, model parsing failure, or malformed output object.', {inputDetails: input, receivedOutputObject: outputFromPrompt});
         return { botResponse: "I'm sorry, I encountered a hiccup. Could you please rephrase or try again?" };
     }
-    return output;
+    
+    return outputFromPrompt;
   }
 );
 
