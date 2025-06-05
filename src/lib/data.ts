@@ -227,6 +227,7 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newProduct = mapProductForConsistency(newProductRaw);
   store.push(newProduct);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  _productsData = null; // Force reload on next call
   return mapProductForConsistency(newProduct); 
 };
 
@@ -239,8 +240,6 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   const existingProduct = store[productIndex];
   
-  // Combine existing product data with updates.
-  // Let mapProductForConsistency handle the final image logic.
   const productDataWithUpdates = {
     ...existingProduct,
     ...updates,
@@ -248,6 +247,7 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   store[productIndex] = mapProductForConsistency(productDataWithUpdates);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  _productsData = null; // Force reload on next call
   return mapProductForConsistency(store[productIndex]);
 };
 
@@ -258,6 +258,7 @@ export const deleteProduct = (id: string): boolean => {
   const success = _productsData.length < initialLength;
   if (success) {
     saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData.map(p => mapProductForConsistency(p)));
+    _productsData = null; // Force reload on next call
   }
   return success;
 };
@@ -290,6 +291,7 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
   
   store[productIndex] = mapProductForConsistency(product); 
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
+  _productsData = null; // Force reload on next call
   return mapProductForConsistency(store[productIndex]); 
 };
 
@@ -326,6 +328,7 @@ export const updateSiteSettings = (newSettings: Partial<SiteSettings>): SiteSett
   let store = getSiteSettingsStore(); 
   _siteSettingsData = { ...store, ...newSettings }; 
   saveToLocalStorage(SETTINGS_STORAGE_KEY, _siteSettingsData);
+  // No need to nullify _siteSettingsData here as SiteSettingsProvider handles its own state refresh based on context.
   return { ..._siteSettingsData };
 };
 
@@ -378,6 +381,7 @@ export const createUser = (userInput: UserCreateInput): User | { error: string }
   _newUserIdCounter++; 
   store.push(newUser);
   saveToLocalStorage(USERS_STORAGE_KEY, store);
+  _usersData = null; // Force reload
   return { ...newUser };
 };
 
@@ -441,6 +445,7 @@ export const addOrder = (orderInput: OrderCreateInput): Order => {
   };
   store.unshift(newOrder); 
   saveToLocalStorage(ORDERS_STORAGE_KEY, store.map(o => ({...o, items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)}))})));
+  _ordersData = null; // Force reload
   return {
     ...newOrder,
     items: newOrder.items.map(item => ({...item, product: mapProductForConsistency(item.product)})),
@@ -456,6 +461,7 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
   }
   store[orderIndex].status = newStatus;
   saveToLocalStorage(ORDERS_STORAGE_KEY, store.map(o => ({...o, items: o.items.map(item => ({...item, product: mapProductForConsistency(item.product)}))})));
+  _ordersData = null; // Force reload
   const updatedOrder = store[orderIndex];
   return {
     ...updatedOrder,
@@ -464,7 +470,7 @@ export const updateOrderStatus = (orderId: string, newStatus: OrderStatus): Orde
   };
 };
 
-// --- Scheduled Call Management ---
+// --- Scheduled Video Call Management ---
 const DEFAULT_SCHEDULED_CALLS_SEED: ScheduledCall[] = [];
 let _scheduledCallsData: ScheduledCall[] | null = null;
 
@@ -501,6 +507,7 @@ export const addScheduledCall = (callInput: ScheduledCallCreateInput): Scheduled
   };
   store.unshift(newCall); // Add to the beginning of the array
   saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
+  _scheduledCallsData = null; // Force reload
   return { ...newCall };
 };
 
@@ -512,6 +519,7 @@ export const updateScheduledCallStatus = (callId: string, newStatus: ScheduledCa
   }
   store[callIndex].status = newStatus;
   saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
+  _scheduledCallsData = null; // Force reload
   return { ...store[callIndex] };
 };
 
