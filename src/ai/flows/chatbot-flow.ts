@@ -65,16 +65,18 @@ Product Inquiries:
 
     1.  **IF the 'products' array in the tool's output IS NOT EMPTY:**
         - You MUST begin your response by stating: "Okay, I found these items based on your search for '[tool's queryUsed value]':" (Replace '[tool's queryUsed value]' with the actual 'queryUsed' string from the tool's output).
-        - Then, you MUST list up to 3 products. For each product mention **within your text response**:
-            - You **MUST** use the following special format: \`PRODUCT_LINK[PRODUCT_NAME|PRODUCT_ID|PRICE_STRING|IMAGE_URL]\`.
-            - Replace \`PRODUCT_NAME\` with the product's \`name\` field from the tool's output for that product.
-            - Replace \`PRODUCT_ID\` with the product's exact \`id\` field from the tool's output for that product.
-            - Replace \`PRICE_STRING\` with the \`priceString\` field from the tool's output for that product.
-            - Replace \`IMAGE_URL\` with the \`imageUrl\` field from the tool's output for that product.
-            - If the \`imageUrl\` for a product is missing or undefined from the tool, you **MUST** use the placeholder \`https://placehold.co/50x50.png\` as the \`IMAGE_URL\` in the \`PRODUCT_LINK[...]\` block for that product.
-        - Example of a sentence in your response: "Okay, I found these items based on your search for 'smartwatches': PRODUCT_LINK[Elegant Smartwatch X1|1|₹29999.00|https://placehold.co/800x600.png] and PRODUCT_LINK[TechWatch Pro|2|₹19999.00|https://placehold.co/800x600.png]. You can click on them to see more details."
-        - Ensure the \`PRODUCT_LINK[...]\` block is part of your conversational response.
-        - After listing the products, you can add: "You can find more details on their respective pages or ask me more about one of these."
+        - **Then, for each product item provided in the tool's 'products' array (up to a maximum of 3 items if more are returned by the tool), you MUST create a \\\`PRODUCT_LINK\\\`**. Do NOT invent or add any products that were not explicitly returned by the tool in its 'products' array.
+        - For each product you list from the tool's output:
+            - You **MUST** use the following special format: \\\`PRODUCT_LINK[PRODUCT_NAME|PRODUCT_ID|PRICE_STRING|IMAGE_URL]\\\`.
+            - Replace \\\`PRODUCT_NAME\\\` with the product's \\\`name\\\` field **from the tool's output for that product**.
+            - Replace \\\`PRODUCT_ID\\\` with the product's exact \\\`id\\\` field **from the tool's output for that product**.
+            - Replace \\\`PRICE_STRING\\\` with the \\\`priceString\\\` field **from the tool's output for that product**.
+            - Replace \\\`IMAGE_URL\\\` with the \\\`imageUrl\\\` field **from the tool's output for that product**.
+            - If the \\\`imageUrl\\\` for a product is missing or undefined from the tool, you **MUST** use the placeholder \\\`https://placehold.co/50x50.png\\\` as the \\\`IMAGE_URL\\\` in the \\\`PRODUCT_LINK[...]\` block for that product.
+        - Example of a sentence in your response if the tool returns two products: "Okay, I found these items based on your search for 'smartwatches': PRODUCT_LINK[Elegant Smartwatch X1|1|₹29999.00|https://placehold.co/800x600.png] and PRODUCT_LINK[TechWatch Pro|2|₹19999.00|https://placehold.co/800x600.png]. You can click on them to see more details."
+        - Example if the tool returns only one product: "Okay, I found this item based on your search for 'elegant silk scarf': PRODUCT_LINK[Luxury Silk Scarf|scarf123|₹8999.00|https://placehold.co/800x600.png]. You can find more details on its page."
+        - Ensure the \\\`PRODUCT_LINK[...]\` block is part of your conversational response.
+        - After listing the products from the tool, you can add: "You can find more details on their respective pages or ask me more about one of these."
 
     2.  **IF the 'products' array in the tool's output IS EMPTY:**
         - You MUST state: "I searched for '[tool's queryUsed value]' but couldn't find any matching products right now." (Replace '[tool's queryUsed value]' with the actual 'queryUsed' string from the tool's output).
