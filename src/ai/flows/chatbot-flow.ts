@@ -28,7 +28,7 @@ const ChatbotInputSchema = z.object({
 export type ChatbotInput = z.infer<typeof ChatbotInputSchema>;
 
 const ChatbotOutputSchema = z.object({
-  botResponse: z.string().describe('The chatbot\'s response to the user.'),
+  botResponse: z.string().describe('The chatbot\'s response to the user, potentially containing special PRODUCT_LINK directives for rendering products.'),
 });
 export type ChatbotOutput = z.infer<typeof ChatbotOutputSchema>;
 
@@ -65,10 +65,16 @@ Product Inquiries:
 
     1.  **IF the 'products' array in the tool's output IS NOT EMPTY:**
         - You MUST begin your response by stating: "Okay, I found these items based on your search for '[tool's queryUsed value]':" (Replace '[tool's queryUsed value]' with the actual 'queryUsed' string from the tool's output).
-        - Then, you MUST list up to 3 product names and their prices from the 'products' array.
-        - Format for each product: "- [Product Name] (₹[Price])"
-        - After listing the products, you can add: "You can find more details on our Shop page or ask me more about one of these."
-        - Example: "Okay, I found these items based on your search for 'smartwatches': - Elegant Smartwatch X1 (₹29999.00) - TechWatch Pro (₹19999.00). You can find more details on our Shop page or ask me more about one of these."
+        - Then, you MUST list up to 3 products. For each product mention **within your text response**:
+            - You **MUST** use the following special format: \`PRODUCT_LINK[PRODUCT_NAME|PRODUCT_ID|PRICE_STRING|IMAGE_URL]\`.
+            - Replace \`PRODUCT_NAME\` with the product's name.
+            - Replace \`PRODUCT_ID\` with the product's \`id\`.
+            - Replace \`PRICE_STRING\` with the formatted price (e.g., ₹29999.00).
+            - Replace \`IMAGE_URL\` with the \`imageUrl\` from the tool's output for that product.
+            - If the \`imageUrl\` for a product is missing or undefined from the tool, you **MUST** use the placeholder \`https://placehold.co/50x50.png\` as the \`IMAGE_URL\` in the \`PRODUCT_LINK[...]\` block for that product.
+        - Example of a sentence in your response: "Okay, I found these items based on your search for 'smartwatches': PRODUCT_LINK[Elegant Smartwatch X1|1|₹29999.00|https://placehold.co/800x600.png] and PRODUCT_LINK[TechWatch Pro|2|₹19999.00|https://placehold.co/800x600.png]. You can click on them to see more details."
+        - Ensure the \`PRODUCT_LINK[...]\` block is part of your conversational response.
+        - After listing the products, you can add: "You can find more details on their respective pages or ask me more about one of these."
 
     2.  **IF the 'products' array in the tool's output IS EMPTY:**
         - You MUST state: "I searched for '[tool's queryUsed value]' but couldn't find any matching products right now." (Replace '[tool's queryUsed value]' with the actual 'queryUsed' string from the tool's output).
@@ -78,7 +84,7 @@ Product Inquiries:
 
 - If a user asks about a very specific item by name and its availability (e.g., "Is the 'Azure Silk Blouse' in stock in size M?"):
     - First, use the 'searchProductsStoreTool' with the product name (e.g., "Azure Silk Blouse").
-    - If the 'products' array from the tool indicates the product exists: "We do have the 'Azure Silk Blouse'. For specific details like size availability and stock, please check its page on our website. You can search for it on our 'Shop' page."
+    - If the 'products' array from the tool indicates the product exists (meaning the product has an entry): "We do have the PRODUCT_LINK[Azure Silk Blouse|prod_id_from_tool|₹price_from_tool|image_url_from_tool]. For specific details like size availability and stock, please check its page by clicking on it."
     - Do NOT invent availability details like "Yes, it's in stock in size M."
 
 - Your role is to assist and guide. You cannot complete purchases, add items to a cart, or provide real-time inventory status beyond what the search tool offers (which is primarily product existence and basic details).
@@ -108,7 +114,7 @@ Generate the assistant's response. Use the available tools if appropriate and in
 Assistant:`,
   config: {
     temperature: 0.65,
-    maxOutputTokens: 250,
+    maxOutputTokens: 350, // Increased slightly to accommodate product link syntax
   }
 });
 
@@ -136,20 +142,11 @@ const chatbotFlow = ai.defineFlow(
     let outputFromPrompt: ChatbotOutput | null = null;
     try {
       const result = await prompt(promptData);
-      // result.output can be null if Zod parsing of a valid model string response failed
       outputFromPrompt = result.output;
     } catch (e) {
-      // This catch block handles errors thrown by prompt() itself,
-      // e.g., network errors, or fundamental model response issues (like root null)
-      // before Zod parsing of the 'output' field of the result can even occur.
       console.error('[chatbotFlow] Error during prompt() execution:', e, {inputDetails: input});
-      // outputFromPrompt remains null, the fallback below will be triggered
     }
 
-    // This unified check now handles:
-    // 1. prompt() threw an error (outputFromPrompt is null because of the catch block).
-    // 2. prompt() resolved, but result.output was null (Zod parsing of a model string failed).
-    // 3. prompt() resolved, result.output was an object, but didn't have the botResponse field.
     if (!outputFromPrompt || !outputFromPrompt.botResponse) {
         console.error('[chatbotFlow] Fallback: No valid botResponse obtained. This could be due to a prompt execution error, model parsing failure, or malformed output object.', {inputDetails: input, receivedOutputObject: outputFromPrompt});
         return { botResponse: "I'm sorry, I encountered a hiccup. Could you please rephrase or try again?" };
@@ -159,3 +156,4 @@ const chatbotFlow = ai.defineFlow(
   }
 );
 
+    

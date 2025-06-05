@@ -476,7 +476,7 @@ export default function AdminPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                       {newProductForm.imagePreviews.map((previewSrc, index) => (
                         <div key={index} className="relative group">
-                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
+                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" data-ai-hint="product image" />
                           <Button type="button" variant="ghost" size="icon" className="absolute top-0 right-0 bg-black/50 text-white group-hover:opacity-100 opacity-0 h-6 w-6" onClick={() => removeImagePreview(index, 'add')}>
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -532,7 +532,7 @@ export default function AdminPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
                       {(currentProductForm.imagePreviews || []).map((previewSrc, index) => (
                         <div key={index} className="relative group">
-                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" />
+                          <Image src={previewSrc} alt={`Preview ${index + 1}`} width={100} height={75} className="rounded object-cover aspect-[4/3]" data-ai-hint="product image" />
                            <Button type="button" variant="ghost" size="icon" className="absolute top-0 right-0 bg-black/50 text-white group-hover:opacity-100 opacity-0 h-6 w-6" onClick={() => removeImagePreview(index, 'edit')}>
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -969,3 +969,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

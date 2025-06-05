@@ -1,13 +1,15 @@
 
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import React, { useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { MessageSquare, Send, User, Bot, Loader2, X } from 'lucide-react';
+import { MessageSquare, Send, User, Bot, Loader2 } from 'lucide-react';
 import { getChatbotResponse, type ChatbotInput, type ChatMessage } from '@/ai/flows/chatbot-flow';
 import { useSiteSettings } from '@/context/SiteSettingsContext';
 import { cn } from '@/lib/utils';
@@ -16,6 +18,56 @@ interface DisplayMessage extends ChatMessage {
   id: string;
 }
 
+const productLinkRegex = /PRODUCT_LINK\[([^|]+)\|([^|]+)\|([^|]+)\|([^\]]+)\]/g;
+
+const renderBotMessage = (content: string) => {
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  
+  // Reset lastIndex for global regex
+  productLinkRegex.lastIndex = 0;
+
+  while ((match = productLinkRegex.exec(content)) !== null) {
+    // Add text before the product link
+    if (match.index > lastIndex) {
+      parts.push(content.substring(lastIndex, match.index));
+    }
+    // Add the product link component
+    const [_fullMatch, productName, productId, priceString, imageUrl] = match;
+    parts.push(
+      <div key={`${productId}-${match.index}`} className="my-2.5"> 
+        <Link href={`/products/${productId}`} passHref legacyBehavior>
+          <a className="flex items-center gap-3 p-2.5 border border-border rounded-lg hover:bg-secondary/60 transition-colors shadow-sm bg-secondary/30">
+            <div className="relative w-[50px] h-[50px] shrink-0">
+              <Image 
+                src={imageUrl} 
+                alt={productName} 
+                layout="fill"
+                objectFit="cover"
+                className="rounded bg-muted"
+                data-ai-hint="product thumbnail"
+              />
+            </div>
+            <div className="flex-grow min-w-0"> {/* Added min-w-0 for better truncation */}
+              <div className="font-semibold text-primary hover:underline truncate">{productName}</div>
+              <div className="text-sm text-muted-foreground">{priceString}</div>
+            </div>
+          </a>
+        </Link>
+      </div>
+    );
+    lastIndex = productLinkRegex.lastIndex;
+  }
+  // Add any remaining text after the last product link
+  if (lastIndex < content.length) {
+    parts.push(content.substring(lastIndex));
+  }
+
+  return <>{parts.map((part, i) => <React.Fragment key={i}>{part}</React.Fragment>)}</>;
+};
+
+
 export function ChatWidget() {
   const { siteSettings } = useSiteSettings();
   const [isOpen, setIsOpen] = useState(false);
@@ -23,15 +75,16 @@ export function ChatWidget() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     if (isOpen && messages.length === 0 && !isLoading) {
-      // Initial greeting from bot when chat opens for the first time in a session
       setIsLoading(true);
       setTimeout(async () => {
         try {
           const greetingInput: ChatbotInput = {
-            userInput: "Hello", // Simulate a user greeting to get a welcome message
+            userInput: "Hello", 
             chatHistory: [],
             siteName: siteSettings.siteName || "ShopSphere",
           };
@@ -43,18 +96,12 @@ export function ChatWidget() {
         } finally {
           setIsLoading(false);
         }
-      }, 200); // Small delay to ensure dialog is visible
+      }, 200); 
     }
-  }, [isOpen, siteSettings.siteName]); // Removed messages and isLoading to prevent loop
+  }, [isOpen, siteSettings.siteName]);
 
   useEffect(() => {
-    // Scroll to bottom when new messages are added
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div'); // Target the viewport div
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = async (e: FormEvent<HTMLFormElement>) => {
@@ -71,10 +118,9 @@ export function ChatWidget() {
     setIsLoading(true);
 
     try {
-      // Prepare history: take last N messages, ensure current user input is not duplicated
       const historyForAI = messages
-        .filter(m => m.id !== newUserMessage.id) // Exclude the just added user message from history
-        .slice(-4) // Send last 4 messages (2 turns) as history
+        .filter(m => m.id !== newUserMessage.id) 
+        .slice(-4) 
         .map(({ role, content }) => ({ role, content }));
 
       const input: ChatbotInput = {
@@ -121,7 +167,6 @@ export function ChatWidget() {
             <DialogTitle className="flex items-center text-primary">
               <Bot className="mr-2 h-6 w-6" /> {siteSettings.siteName} Assistant
             </DialogTitle>
-            {/* The redundant close button that was here has been removed */}
           </DialogHeader>
 
           <ScrollArea className="flex-grow p-4 space-y-4" ref={scrollAreaRef}>
@@ -134,35 +179,30 @@ export function ChatWidget() {
                 )}
               >
                 {msg.role === 'bot' && (
-                  <Avatar className="h-8 w-8 bg-accent text-accent-foreground">
+                  <Avatar className="h-8 w-8 bg-accent text-accent-foreground self-start shrink-0">
                     <AvatarFallback><Bot className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                 )}
                 <div
                   className={cn(
-                    "max-w-[75%] rounded-lg px-3 py-2 text-sm shadow",
+                    "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 text-sm shadow", // Adjusted max-width
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-none'
                       : 'bg-muted text-foreground rounded-bl-none'
                   )}
                 >
-                  {msg.content.split('\\n').map((line, index) => (
-                    <span key={index}>
-                      {line}
-                      {index < msg.content.split('\\n').length - 1 && <br />}
-                    </span>
-                  ))}
+                  {msg.role === 'bot' ? renderBotMessage(msg.content) : msg.content}
                 </div>
                 {msg.role === 'user' && (
-                  <Avatar className="h-8 w-8 bg-secondary text-secondary-foreground">
+                  <Avatar className="h-8 w-8 bg-secondary text-secondary-foreground self-start shrink-0">
                     <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                 )}
               </div>
             ))}
-            {isLoading && messages.length > 0 && ( // Show loading indicator only if there are messages already
+            {isLoading && messages.length > 0 && ( 
               <div className="flex items-end gap-2 mb-3 justify-start">
-                <Avatar className="h-8 w-8 bg-accent text-accent-foreground">
+                <Avatar className="h-8 w-8 bg-accent text-accent-foreground self-start shrink-0">
                   <AvatarFallback><Bot className="h-5 w-5" /></AvatarFallback>
                 </Avatar>
                 <div className="max-w-[75%] rounded-lg px-3 py-2 text-sm shadow bg-muted text-foreground rounded-bl-none">
@@ -170,6 +210,7 @@ export function ChatWidget() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </ScrollArea>
 
           <DialogFooter className="p-4 border-t">
@@ -194,3 +235,5 @@ export function ChatWidget() {
     </>
   );
 }
+
+    
