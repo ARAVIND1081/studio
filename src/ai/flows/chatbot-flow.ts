@@ -72,8 +72,7 @@ Product Inquiries:
             - Replace \\\`PRODUCT_NAME\\\` with the product's \\\`name\\\` field **from the tool's output for that product**.
             - Replace \\\`PRODUCT_ID\\\` with the product's exact \\\`id\\\` field **from the tool's output for that product**.
             - Replace \\\`PRICE_STRING\\\` with the \\\`priceString\\\` field **from the tool's output for that product**.
-            - Replace \\\`IMAGE_URL\\\` with the \\\`imageUrl\\\` field **from the tool's output for that product**.
-            - If the \\\`imageUrl\\\` for a product is missing or undefined from the tool, you **MUST** use the placeholder \\\`https://placehold.co/50x50.png\\\` as the \\\`IMAGE_URL\\\` in the \\\`PRODUCT_LINK[...]\` block for that product.
+            - Replace \\\`IMAGE_URL\\\` with the product's \\\`imageUrl\\\` field **from the tool's output for that product** (this will always be a valid URL string).
         - Example of a sentence in your response if the tool returns two products: "Okay, I found these items based on your search for 'smartwatches': PRODUCT_LINK[Elegant Smartwatch X1|1|₹29999.00|https://placehold.co/800x600.png] and PRODUCT_LINK[TechWatch Pro|2|₹19999.00|https://placehold.co/800x600.png]. You can click on them to see more details."
         - Example if the tool returns only one product: "Okay, I found this item based on your search for 'elegant silk scarf': PRODUCT_LINK[Luxury Silk Scarf|scarf123|₹8999.00|https://placehold.co/800x600.png]. You can find more details on its page."
         - Ensure the \\\`PRODUCT_LINK[...]\` block is part of your conversational response.
