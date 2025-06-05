@@ -19,7 +19,7 @@ export type ProductSearchInput = z.infer<typeof ProductSearchInputSchema>;
 const ProductSearchResultItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  price: z.number(),
+  priceString: z.string().describe("The formatted price of the product, e.g., ₹29999.00"),
   category: z.string(),
   imageUrl: z.string().optional().describe("A URL to an image of the product."),
 });
@@ -33,7 +33,7 @@ export type ProductSearchOutput = z.infer<typeof ProductSearchOutputSchema>;
 export const searchProductsStoreTool = ai.defineTool(
   {
     name: 'searchProductsStoreTool',
-    description: "Searches the e-commerce store's product catalog based on a user's query. Use this when a user asks to find products, look for items, or inquires about product availability by type or name. Returns a list of matching products.",
+    description: "Searches the e-commerce store's product catalog based on a user's query. Use this when a user asks to find products, look for items, or inquires about product availability by type or name. Returns a list of matching products with pre-formatted price strings.",
     inputSchema: ProductSearchInputSchema,
     outputSchema: ProductSearchOutputSchema,
   },
@@ -56,7 +56,7 @@ export const searchProductsStoreTool = ai.defineTool(
     const resultProducts = filteredProducts.slice(0, MAX_SEARCH_RESULTS).map(p => ({
       id: p.id,
       name: p.name,
-      price: p.price,
+      priceString: `₹${p.price.toFixed(2)}`, // Format price here
       category: p.category,
       imageUrl: p.imageUrl,
     }));
@@ -64,3 +64,4 @@ export const searchProductsStoreTool = ai.defineTool(
     return { products: resultProducts, queryUsed: input.query };
   }
 );
+
