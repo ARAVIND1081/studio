@@ -43,6 +43,7 @@ const prompt = ai.definePrompt({
   output: {schema: ChatbotOutputSchema},
   prompt: `You are a friendly, helpful, and articulate customer support assistant for {{{siteName}}}, a luxury e-commerce website.
 Your primary goal is to assist users with their questions about products, help them find items, and answer inquiries about store policies.
+Your response about products MUST be based *solely* on the 'products' array provided by the 'searchProductsStoreTool'.
 Aim for natural, conversational, and helpful responses. Keep responses informative yet reasonably concise.
 Pay close attention to the conversation history to understand context and avoid repeating information.
 If a user's query is unclear, ask a polite clarifying question before attempting to use tools or provide specific information.
@@ -115,8 +116,14 @@ User: {{{userInput}}}
 Generate the assistant's response. Use the available tools if appropriate and instructed, and carefully follow the rules for interpreting their output.
 Assistant:`,
   config: {
-    temperature: 0.4, // Lowered temperature for more deterministic responses
+    temperature: 0.3, // Further lowered temperature
     maxOutputTokens: 350,
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    ],
   }
 });
 
@@ -147,6 +154,7 @@ const chatbotFlow = ai.defineFlow(
       outputFromPrompt = result.output;
     } catch (e) {
       console.error('[chatbotFlow] Error during prompt() execution:', e, {inputDetails: input});
+      // outputFromPrompt remains null, will be handled by the check below
     }
 
     if (!outputFromPrompt || !outputFromPrompt.botResponse) {
