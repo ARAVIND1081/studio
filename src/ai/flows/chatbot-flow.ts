@@ -60,6 +60,7 @@ Product Inquiries:
     - If the user's message is very noisy or contains no clear product terms, do not use the tool for product search in that turn. Instead, you can ask for clarification or address other parts of their query if applicable.
 
 - After the 'searchProductsStoreTool' has executed, its output will include a 'products' array (which may be empty or contain product items) and a 'queryUsed' string (this is the query the tool actually used).
+- Your response about products MUST be based *solely* on the 'products' array provided by the 'searchProductsStoreTool'.
 
 - **Interpreting Tool Output (Follow these steps strictly):**
 
@@ -104,7 +105,7 @@ Conversation History:
 {{#each chatHistory}}
 {{#if this.isUser}}User: {{{this.content}}}{{/if}}
 {{#if this.isBot}}Assistant: {{{this.content}}}{{/if}}
-{{/each}}
+{{/end}}
 {{else}}
 This is the start of our conversation.
 {{/if}}
@@ -115,8 +116,8 @@ User: {{{userInput}}}
 Generate the assistant's response. Use the available tools if appropriate and instructed, and carefully follow the rules for interpreting their output.
 Assistant:`,
   config: {
-    temperature: 0.65,
-    maxOutputTokens: 350, // Increased slightly to accommodate product link syntax
+    temperature: 0.4, // Lowered temperature for more deterministic responses
+    maxOutputTokens: 350,
   }
 });
 
@@ -157,4 +158,4 @@ const chatbotFlow = ai.defineFlow(
     return outputFromPrompt;
   }
 );
- 
+
