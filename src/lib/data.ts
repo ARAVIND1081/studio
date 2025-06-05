@@ -86,15 +86,15 @@ const sampleSpecifications: ProductSpecification[] = [
   { name: 'Origin', value: 'Made in Italy' },
 ];
 
+const isValidImageUrl = (url: string | null | undefined): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmedUrl = url.trim();
+  return trimmedUrl.startsWith('data:image') || trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
+};
+
 function mapProductForConsistency(p: any): Product {
   const defaultImg = 'https://placehold.co/600x400.png';
   let imagesToUse: string[] = [];
-
-  const isValidImageUrl = (url: string | null | undefined): boolean => {
-    if (!url || typeof url !== 'string') return false;
-    const trimmedUrl = url.trim();
-    return trimmedUrl.startsWith('data:image') || trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://');
-  };
 
   if (p.images && Array.isArray(p.images) && p.images.length > 0) {
     const validPImages = p.images.filter(isValidImageUrl);
@@ -238,42 +238,17 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
   }
 
   const existingProduct = store[productIndex];
-  let updatedProductData: Product = { ...existingProduct, ...updates };
-  const defaultImg = 'https://placehold.co/600x400.png';
+  
+  // Combine existing product data with updates.
+  // Let mapProductForConsistency handle the final image logic.
+  const productDataWithUpdates = {
+    ...existingProduct,
+    ...updates,
+  };
 
-  if (updates.images !== undefined) { // if images key is part of updates
-    if (Array.isArray(updates.images) && updates.images.length > 0) {
-      const validImages = updates.images.filter(img => typeof img === 'string' && img.trim().startsWith('data:image'));
-      if (validImages.length > 0) {
-        updatedProductData.images = validImages;
-        updatedProductData.imageUrl = validImages[0];
-      } else { // Empty or all invalid images provided
-        updatedProductData.images = [defaultImg];
-        updatedProductData.imageUrl = defaultImg;
-      }
-    } else { // updates.images is null, undefined, or empty array
-      updatedProductData.images = [defaultImg];
-      updatedProductData.imageUrl = defaultImg;
-    }
-  } else if (updates.imageUrl !== undefined) { // if only imageUrl is updated, and not images
-    if (typeof updates.imageUrl === 'string' && updates.imageUrl.trim().startsWith('data:image')) {
-        updatedProductData.imageUrl = updates.imageUrl;
-        // If images array didn't exist or was different, update it to reflect the new single imageUrl
-        if (!updatedProductData.images || updatedProductData.images[0] !== updates.imageUrl) {
-            updatedProductData.images = [updates.imageUrl];
-        }
-    } else { // Invalid imageUrl provided
-        updatedProductData.imageUrl = defaultImg;
-        updatedProductData.images = [defaultImg];
-    }
-  }
-  // If neither images nor imageUrl are in updates, existing images/imageUrl are kept from spread,
-  // and mapProductForConsistency will handle them.
-
-
-  store[productIndex] = mapProductForConsistency(updatedProductData); 
+  store[productIndex] = mapProductForConsistency(productDataWithUpdates);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
-  return mapProductForConsistency(store[productIndex]); 
+  return mapProductForConsistency(store[productIndex]);
 };
 
 export const deleteProduct = (id: string): boolean => {
