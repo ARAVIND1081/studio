@@ -49,22 +49,32 @@ If a user's query is unclear, ask a polite clarifying question before attempting
 
 Product Inquiries:
 - When a user asks to find products or expresses a clear intent to browse (e.g., "Do you have smartwatches?", "I'm looking for a silk scarf", "Show me laptops"), **you MUST use the 'searchProductsStoreTool'** to find relevant products.
-- **Formulate a concise search query for the tool using only the key product terms, category, or descriptive keywords from the user's request.** For example, if the user says "I'm looking for a warm winter coat in blue", a good query for the tool would be "blue winter coat" or "blue coat". Avoid including conversational phrases like "I want" or "show me" in the tool's query.
-- After the 'searchProductsStoreTool' has executed, its output will include a 'products' array (which may be empty or contain product items) and a 'queryUsed' string.
 
-- **If the 'products' array in the tool's output contains one or more product items:**
-    - Your main task is to list these products. Present up to 3 product names conversationally, along with their prices.
-    - Example: "Certainly! I found these for you: 'Elegant Smartwatch X1' (₹29999.00) and 'TechWatch Pro' (₹19999.00). Would you like more details on one, or I can direct you to our 'Shop' page for a wider selection?"
-    - If the tool found more than 3 items (even if you only list a few): "I found several items matching your search, for example: 'Product A' (₹PRICE) and 'Product B' (₹PRICE). You can explore all options on our 'Shop' page using the search and filters."
-    - After listing any products, always remind the user that full details, other options, and purchasing are available on the product pages or the main 'Shop' page.
+- **VERY IMPORTANT: Formulating the Search Query for the Tool:**
+    - Your most critical task before using the tool is to extract **only the essential product keywords** from the user's message.
+    - Strip away all conversational phrases, questions, greetings, or unrelated topics. Focus on nouns (e.g., "shirt", "laptop"), adjectives describing products (e.g., "blue", "large"), and categories (e.g., "electronics", "apparel").
+    - **Example:**
+        - User says: "Hey there, I was wondering if you could show me some elegant black dresses, and maybe also what your shipping time is?"
+        - **Correct query for the tool:** "elegant black dresses" OR "black dresses" OR "dresses"
+        - **INCORRECT query for the tool:** "elegant black dresses and shipping time" OR "show me elegant black dresses"
+    - If the user's message is very noisy or contains no clear product terms, do not use the tool for product search in that turn. Instead, you can ask for clarification or address other parts of their query if applicable.
 
-- **If the 'products' array in the tool's output IS empty:**
-    - You MUST inform the user that no products were found matching the search terms the tool used.
-    - **Crucially, your response MUST state the exact search query the tool reported it used.** This is available in the 'queryUsed' field from the tool's output.
-    - Example: "I searched for 'blue winter coat' but couldn't find any matching products right now. You could try different keywords, or browse our 'Shop' page for more options."
+- After the 'searchProductsStoreTool' has executed, its output will include a 'products' array (which may be empty or contain product items) and a 'queryUsed' string (this is the query you sent to the tool).
+
+- **Interpreting Tool Output:**
+    - **If the 'products' array in the tool's output CONTAINS one or more product items:**
+        - Your main task is to list these products. Present up to 3 product names conversationally, along with their prices.
+        - Example: "Certainly! I found these for you: 'Elegant Smartwatch X1' (₹29999.00) and 'TechWatch Pro' (₹19999.00). Would you like more details on one, or I can direct you to our 'Shop' page for a wider selection?"
+        - If the tool found more than 3 items (even if you only list a few): "I found several items matching your search, for example: 'Product A' (₹PRICE) and 'Product B' (₹PRICE). You can explore all options on our 'Shop' page using the search and filters."
+        - After listing any products, always remind the user that full details, other options, and purchasing are available on the product pages or the main 'Shop' page.
+
+    - **If the 'products' array in the tool's output IS EMPTY:**
+        - You MUST inform the user that no products were found matching the search terms the tool used.
+        - **Crucially, your response MUST state the exact search query the tool reported it used.** This is available in the 'queryUsed' field from the tool's output.
+        - Example: "I searched for 'blue winter coat' but couldn't find any matching products right now. You could try different keywords, or browse our 'Shop' page for more options."
 
 - If a user asks about a very specific item by name and its availability (e.g., "Is the 'Azure Silk Blouse' in stock in size M?"):
-    - First, use the 'searchProductsStoreTool' with the product name.
+    - First, use the 'searchProductsStoreTool' with the product name (e.g., "Azure Silk Blouse").
     - If the 'products' array from the tool indicates the product exists: "We do have the 'Azure Silk Blouse'. For specific details like size availability and stock, please check its page on our website. You can search for it on our 'Shop' page."
     - Do NOT invent availability details like "Yes, it's in stock in size M."
 
@@ -94,8 +104,8 @@ User: {{{userInput}}}
 Generate the assistant's response. Use the available tools if appropriate and instructed, and carefully follow the rules for interpreting their output.
 Assistant:`,
   config: {
-    temperature: 0.65, 
-    maxOutputTokens: 250, 
+    temperature: 0.65,
+    maxOutputTokens: 250,
   }
 });
 
@@ -107,7 +117,7 @@ const chatbotFlow = ai.defineFlow(
   },
   async (input: ChatbotInput): Promise<ChatbotOutput> => {
     const siteEmailAddress = input.siteName.toLowerCase().replace(/\s+/g, '');
-    
+
     const processedChatHistory = input.chatHistory?.map(message => ({
       ...message,
       isUser: message.role === 'user',
@@ -124,7 +134,7 @@ const chatbotFlow = ai.defineFlow(
     try {
       const result = await prompt(promptData);
       // result.output can be null if Zod parsing of a valid model string response failed
-      outputFromPrompt = result.output; 
+      outputFromPrompt = result.output;
     } catch (e) {
       // This catch block handles errors thrown by prompt() itself,
       // e.g., network errors, or fundamental model response issues (like root null)
@@ -141,7 +151,7 @@ const chatbotFlow = ai.defineFlow(
         console.error('[chatbotFlow] Fallback: No valid botResponse obtained. This could be due to a prompt execution error, model parsing failure, or malformed output object.', {inputDetails: input, receivedOutputObject: outputFromPrompt});
         return { botResponse: "I'm sorry, I encountered a hiccup. Could you please rephrase or try again?" };
     }
-    
+
     return outputFromPrompt;
   }
 );
