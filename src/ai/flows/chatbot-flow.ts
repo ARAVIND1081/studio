@@ -10,36 +10,50 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { searchProductsStoreTool } from '@/ai/tools/product-search-tool'; // Import the new tool
+import { searchProductsStoreTool } from '@/ai/tools/product-search-tool';
 
-export interface ChatMessage {
-  role: 'user' | 'bot';
-  content: string;
-}
+// Schema for the items in chatHistory array, as expected by the Handlebars template
+const ChatHistoryMessageSchemaForTemplate = z.object({
+  role: z.enum(['user', 'bot']),
+  content: z.string(),
+  isUser: z.boolean().describe("True if the message is from the user."), // For Handlebars
+  isBot: z.boolean().describe("True if the message is from the bot/assistant."),   // For Handlebars
+});
 
-const ChatbotInputSchema = z.object({
+// Schema for the actual data object passed to the prompt template engine
+const PromptTemplateDataSchema = z.object({
   userInput: z.string().describe('The latest message from the user.'),
-  chatHistory: z.array(z.object({
+  chatHistory: z.array(ChatHistoryMessageSchemaForTemplate).optional().describe('A brief history of the conversation, if any.'),
+  siteName: z.string().describe('The name of the e-commerce site.'),
+  siteEmailAddress: z.string().describe('The derived email address for the site (e.g., support@sitename).'), // For Handlebars
+});
+
+// Schema for the input of the exported getChatbotResponse function and the chatbotFlow
+const ChatbotFunctionInputSchema = z.object({
+  userInput: z.string().describe('The latest message from the user.'),
+  chatHistory: z.array(z.object({ // Simpler chat history for the public API
     role: z.enum(['user', 'bot']).describe('Who sent the message.'),
     content: z.string().describe('The content of the message.'),
   })).optional().describe('A brief history of the conversation, if any. Current user input is separate.'),
   siteName: z.string().describe('The name of the e-commerce site.'),
 });
-export type ChatbotInput = z.infer<typeof ChatbotInputSchema>;
+export type ChatbotInput = z.infer<typeof ChatbotFunctionInputSchema>; // Public input type
 
+// Schema for the output of the chatbot flow
 const ChatbotOutputSchema = z.object({
   botResponse: z.string().describe('The chatbot\'s response to the user, potentially containing special PRODUCT_LINK directives for rendering products.'),
 });
 export type ChatbotOutput = z.infer<typeof ChatbotOutputSchema>;
 
+// Exported function remains the same
 export async function getChatbotResponse(input: ChatbotInput): Promise<ChatbotOutput> {
   return chatbotFlow(input);
 }
 
 const prompt = ai.definePrompt({
   name: 'chatbotPrompt',
-  tools: [searchProductsStoreTool], 
-  input: {schema: ChatbotInputSchema},
+  tools: [searchProductsStoreTool],
+  input: {schema: PromptTemplateDataSchema}, // Uses the detailed schema for template data
   output: {schema: ChatbotOutputSchema},
   prompt: `You are a friendly, helpful, and conversational AI assistant for the e-commerce store: {{{siteName}}}.
 Your main job is to assist users with their questions about our products and store policies, and to help them find items they're looking for.
@@ -81,8 +95,8 @@ User: {{{userInput}}}
 Now, please generate the assistant's response. Your entire output **MUST** be a single JSON object, with one key "botResponse" containing your textual reply.
 Assistant:`,
   config: {
-    temperature: 0.7, 
-    maxOutputTokens: 450, 
+    temperature: 0.7,
+    maxOutputTokens: 450,
     safetySettings: [
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -95,39 +109,43 @@ Assistant:`,
 const chatbotFlow = ai.defineFlow(
   {
     name: 'chatbotFlow',
-    inputSchema: ChatbotInputSchema,
+    inputSchema: ChatbotFunctionInputSchema, // Flow uses the simpler public input schema
     outputSchema: ChatbotOutputSchema,
   },
-  async (input: ChatbotInput): Promise<ChatbotOutput> => {
+  async (input: ChatbotInput): Promise<ChatbotOutput> => { // `input` matches ChatbotFunctionInputSchema
+    // Derive siteEmailAddress from siteName
     const siteEmailAddress = input.siteName.toLowerCase().replace(/\s+/g, '');
 
+    // Process chatHistory to add isUser and isBot flags for Handlebars
     const processedChatHistory = input.chatHistory?.map(message => ({
       ...message,
       isUser: message.role === 'user',
       isBot: message.role === 'bot',
     }));
 
-    const promptData = {
-      ...input,
-      chatHistory: processedChatHistory,
+    // Construct the data object that matches PromptTemplateDataSchema
+    const promptDataForTemplate: z.infer<typeof PromptTemplateDataSchema> = {
+      userInput: input.userInput,
+      siteName: input.siteName,
+      chatHistory: processedChatHistory, // This now matches ChatHistoryMessageSchemaForTemplate
       siteEmailAddress: siteEmailAddress,
     };
 
     let outputFromPrompt: ChatbotOutput | null = null;
     try {
-      const result = await prompt(promptData);
+      // Pass the fully constructed and schema-compliant data to the prompt
+      const result = await prompt(promptDataForTemplate);
       outputFromPrompt = result.output;
     } catch (e) {
-      console.error('[chatbotFlow] Error during prompt() execution:', e, {inputDetails: input});
-      // outputFromPrompt remains null, will be handled by the check below
+      console.error('[chatbotFlow] Error during prompt() execution:', e, {userInput: input.userInput, siteName: input.siteName, siteEmailAddress: siteEmailAddress});
+      // Log more detailed input to prompt if possible, without exposing sensitive parts of chatHistory easily
     }
 
     if (!outputFromPrompt || !outputFromPrompt.botResponse) {
-        console.error('[chatbotFlow] Fallback: No valid botResponse obtained. This could be due to a prompt execution error, model parsing failure, or malformed output object.', {inputDetails: input, receivedOutputObject: outputFromPrompt});
+        console.error('[chatbotFlow] Fallback: No valid botResponse obtained. This could be due to a prompt execution error, model parsing failure, or malformed output object.', {userInput: input.userInput, receivedOutputObject: outputFromPrompt});
         return { botResponse: "I'm sorry, I encountered a hiccup. Could you please rephrase or try again?" };
     }
 
     return outputFromPrompt;
   }
 );
-
