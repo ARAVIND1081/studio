@@ -68,7 +68,11 @@ Product Search and Display:
         - Then, for **each product object that is ACTUALLY PRESENT in the tool's 'products' array** (display a maximum of 3 products even if the tool returns more), you **MUST** create one \\\`PRODUCT_LINK\\\`.
         - **You MUST NOT list any product that is NOT explicitly found and provided in the tool's 'products' array output.** Do NOT invent, assume, or add any other products. Your response about products must be based *solely* on the tool's output.
         - For each product you list (which must be from the tool's output):
-            - You **MUST** use the exact values from the tool's output for that specific product when creating the \\\`PRODUCT_LINK[PRODUCT_NAME|PRODUCT_ID|PRICE_STRING|IMAGE_URL]\\\`.
+            - You **MUST** use the following special format: \\\`PRODUCT_LINK[PRODUCT_NAME|PRODUCT_ID|PRICE_STRING|IMAGE_URL]\\\`.
+            - Replace \\\`PRODUCT_NAME\\\` with the product's \\\`name\\\` field **from the tool's output for that product**.
+            - Replace \\\`PRODUCT_ID\\\` with the product's \\\`id\\\` field **from the tool's output for that product**.
+            - Replace \\\`PRICE_STRING\\\` with the product's \\\`priceString\\\` field **from the tool's output for that product**.
+            - Replace \\\`IMAGE_URL\\\` with the product's \\\`imageUrl\\\` field **from the tool's output for that product**.
         - Example if tool returns one product: "Okay, I searched for 'smartwatches' and found this: \\\`PRODUCT_LINK[Elegant Smartwatch X1|1|₹29999.00|https://placehold.co/800x600.png]\\\`. You can click on it for more details."
         - Example if tool returns two products: "Okay, I searched for 'blue shirts' and found these: \\\`PRODUCT_LINK[Blue Cotton Shirt|10|₹1299.00|https://placehold.co/800x600.png]\\\` and \\\`PRODUCT_LINK[Navy Silk Shirt|12|₹2499.00|https://placehold.co/800x600.png]\\\`."
     2.  **If the tool's 'products' array IS empty**:
@@ -98,7 +102,7 @@ User: {{{userInput}}}
 Now, please generate the assistant's response. Your entire output **MUST** be a single JSON object, with one key "botResponse" containing your textual reply.
 Assistant:`,
   config: {
-    temperature: 0.2, // Lowered temperature for stricter adherence
+    temperature: 0.2, 
     maxOutputTokens: 450,
     safetySettings: [
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -152,3 +156,4 @@ const chatbotFlow = ai.defineFlow(
     return outputFromPrompt;
   }
 );
+
