@@ -504,6 +504,7 @@ export const addScheduledCall = (callInput: ScheduledCallCreateInput): Scheduled
     id: newId,
     status: 'Pending',
     createdAt: new Date().toISOString(),
+    meetingLink: callInput.meetingLink || undefined, // Ensure meetingLink is handled
   };
   store.unshift(newCall); // Add to the beginning of the array
   saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);

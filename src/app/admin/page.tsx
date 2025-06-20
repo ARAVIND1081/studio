@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus, getAllScheduledCalls, updateScheduledCallStatus } from "@/lib/data"; // Removed getSiteSettings, updateSiteSettings
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info, Video, RefreshCcw } from 'lucide-react';
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info, Video, RefreshCcw, Link as LinkIcon } from 'lucide-react';
 import type { Product, SiteSettings, Order, OrderStatus, ScheduledCall, ScheduledCallStatus } from "@/types";
 import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from "@/types";
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
+import NextLink from 'next/link';
 
 
 const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
@@ -815,7 +816,7 @@ export default function AdminPage() {
                         <Video className="mr-2 h-6 w-6 text-accent"/> Video Call Requests
                     </CardTitle>
                     <CardDescription>
-                        Manage scheduled video viewing requests.
+                        Manage scheduled video viewing requests and their meeting links.
                     </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={refreshScheduledCalls}>
@@ -845,6 +846,15 @@ export default function AdminPage() {
                                     <div className="text-sm">
                                         <p><strong>Requested:</strong> {format(new Date(call.requestedDateTime), "PPP 'at' h:mm a")}</p>
                                         {call.notes && <p className="text-xs text-muted-foreground mt-1"><strong>Notes:</strong> {call.notes}</p>}
+                                        {call.meetingLink && (
+                                            <div className="flex items-center mt-1">
+                                                <LinkIcon className="mr-1.5 h-3.5 w-3.5 text-accent" />
+                                                <strong>Link:</strong>
+                                                <a href={call.meetingLink} target="_blank" rel="noopener noreferrer" className="ml-1 text-primary hover:underline truncate max-w-[200px] sm:max-w-xs">
+                                                    {call.meetingLink}
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Label htmlFor={`call-status-${call.id}`} className="text-xs">Status:</Label>

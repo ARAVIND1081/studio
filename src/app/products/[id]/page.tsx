@@ -3,12 +3,13 @@
 
 import { use, useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import Image from 'next/image';
-import { getProductById, addProductReview, type ReviewCreateInput, addScheduledCall, type ScheduledCallCreateInput } from '@/lib/data';
+import { getProductById, addProductReview, type ReviewCreateInput } from '@/lib/data'; // Removed addScheduledCall
+import { scheduleVideoCall, type ScheduleVideoCallInput } from '@/ai/flows/schedule-video-call-flow'; // Added scheduleVideoCall flow
 import type { Product, Review, ScheduledCall } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2, Video, CalendarDays as CalendarIconLucide } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2, Video, CalendarDays as CalendarIconLucide, Link as LinkIcon } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +108,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && isScheduleDialogOpen) { // only update if dialog is open
       setScheduleRequesterName(currentUser.name || '');
       setScheduleRequesterEmail(currentUser.email || '');
     }
@@ -261,7 +262,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     }
   };
 
-  const handleScheduleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleScheduleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!product) return;
     if (!currentUser && (!scheduleRequesterName.trim() || !scheduleRequesterEmail.trim())) {
@@ -275,31 +276,41 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     
     setIsSubmittingSchedule(true);
     const [hours, minutes] = scheduleTime.split(':').map(Number);
-    const requestedDateTime = new Date(scheduleDate);
-    requestedDateTime.setHours(hours, minutes, 0, 0);
+    const requestedDateTimeObject = new Date(scheduleDate);
+    requestedDateTimeObject.setHours(hours, minutes, 0, 0);
 
-    const callInput: ScheduledCallCreateInput = {
+    const callInput: ScheduleVideoCallInput = {
         productId: product.id,
         productName: product.name,
-        productImageUrl: product.imageUrl,
+        productImageUrl: product.imageUrl, // Assuming product.imageUrl is a valid URL string
         userId: currentUser?.id,
         requesterName: currentUser?.name || scheduleRequesterName,
-        requesterEmail: currentUser?.email || scheduleRequesterEmail,
-        requestedDateTime: requestedDateTime.toISOString(),
+        requesterEmail: currentUser?.email || scheduleRequesterEmail, // Ensure this might be undefined if not provided
+        requestedDateTime: requestedDateTimeObject.toISOString(),
         notes: scheduleNotes,
     };
 
-    addScheduledCall(callInput);
-    toast({ title: "Request Submitted!", description: "We've received your video call request and will be in touch soon." });
-    setIsScheduleDialogOpen(false);
-    setScheduleDate(undefined);
-    setScheduleTime('');
-    setScheduleNotes('');
-    if (!currentUser) {
-        setScheduleRequesterName('');
-        setScheduleRequesterEmail('');
+    try {
+        const result = await scheduleVideoCall(callInput);
+        toast({ 
+            title: "Request Submitted!", 
+            description: `We've received your video call request for ${result.productName}. A meeting link will be available in 'My Video Calls'.` 
+        });
+        setIsScheduleDialogOpen(false);
+        setScheduleDate(undefined);
+        setScheduleTime('');
+        setScheduleNotes('');
+        if (!currentUser) {
+            setScheduleRequesterName('');
+            setScheduleRequesterEmail('');
+        }
+    } catch (error) {
+        console.error("Error submitting schedule request:", error);
+        const errorMessage = error instanceof Error ? error.message : "Could not submit your request.";
+        toast({ title: "Submission Error", description: errorMessage.substring(0,100), variant: "destructive" });
+    } finally {
+        setIsSubmittingSchedule(false);
     }
-    setIsSubmittingSchedule(false);
   };
 
 
@@ -435,7 +446,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="scheduleRequesterEmail">Your Email</Label>
-                      <Input id="scheduleRequesterEmail" type="email" value={scheduleRequesterEmail} onChange={(e) => setScheduleRequesterEmail(e.target.value)} required />
+                      <Input id="scheduleRequesterEmail" type="email" value={scheduleRequesterEmail} onChange={(e) => setScheduleRequesterEmail(e.target.value)} />
                     </div>
                   </>
                 )}
