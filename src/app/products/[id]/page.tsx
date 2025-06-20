@@ -3,13 +3,12 @@
 
 import { use, useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import Image from 'next/image';
-import { getProductById, addProductReview, type ReviewCreateInput } from '@/lib/data'; // Removed addScheduledCall
-import { scheduleVideoCall, type ScheduleVideoCallInput } from '@/ai/flows/schedule-video-call-flow'; // Added scheduleVideoCall flow
+import { getProductById, addProductReview, type ReviewCreateInput, addScheduledCall } from '@/lib/data';
 import type { Product, Review, ScheduledCall } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2, Video, CalendarDays as CalendarIconLucide, Link as LinkIcon } from 'lucide-react';
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, MessageSquare, User, Zap, Sparkles, Loader2, AlertCircle, Shirt, UploadCloud, Wand2, Video } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import type { ScheduledCallCreateInput } from '@/lib/data';
 
 
 export default function ProductDetailPage({ params: paramsProp }: { params: Promise<{ id: string }> | { id: string } }) {
@@ -279,22 +279,22 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
     const requestedDateTimeObject = new Date(scheduleDate);
     requestedDateTimeObject.setHours(hours, minutes, 0, 0);
 
-    const callInput: ScheduleVideoCallInput = {
+    const callInput: ScheduledCallCreateInput = {
         productId: product.id,
         productName: product.name,
-        productImageUrl: product.imageUrl, // Assuming product.imageUrl is a valid URL string
+        productImageUrl: product.imageUrl,
         userId: currentUser?.id,
         requesterName: currentUser?.name || scheduleRequesterName,
-        requesterEmail: currentUser?.email || scheduleRequesterEmail, // Ensure this might be undefined if not provided
+        requesterEmail: currentUser?.email || scheduleRequesterEmail,
         requestedDateTime: requestedDateTimeObject.toISOString(),
         notes: scheduleNotes,
     };
 
     try {
-        const result = await scheduleVideoCall(callInput);
+        const result = addScheduledCall(callInput); // Using direct data function
         toast({ 
             title: "Request Submitted!", 
-            description: `We've received your video call request for ${result.productName}. A meeting link will be available in 'My Video Calls'.` 
+            description: `We've received your video call request for ${result.productName}. Check 'My Video Calls' for status.` 
         });
         setIsScheduleDialogOpen(false);
         setScheduleDate(undefined);
@@ -466,7 +466,7 @@ export default function ProductDetailPage({ params: paramsProp }: { params: Prom
                                 !scheduleDate && "text-muted-foreground"
                                 )}
                             >
-                                <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                <Star className="mr-2 h-4 w-4" /> {/* Replaced CalendarIconLucide with Star temporarily */}
                                 {scheduleDate ? format(scheduleDate, "PPP") : <span>Pick a date</span>}
                             </Button>
                             </PopoverTrigger>

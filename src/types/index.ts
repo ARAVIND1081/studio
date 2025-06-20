@@ -106,7 +106,7 @@ export interface ScheduledCall {
   requestedDateTime: string; // ISO string
   status: ScheduledCallStatus;
   notes?: string;
-  meetingLink?: string; // Added field for Google Meet link
+  // meetingLink?: string; // This line is removed to revert
   createdAt: string; // ISO string
 }
 

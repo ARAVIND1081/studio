@@ -10,7 +10,7 @@ import type { ScheduledCall, ScheduledCallStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Video, CalendarDays, MessageSquareText, Info, ShoppingBag, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle, Video, CalendarDays, MessageSquareText, Info, ShoppingBag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
@@ -92,7 +92,7 @@ export default function MyVideoCallsPage() {
       <div className="text-center mb-10">
         <Video className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-4xl font-bold font-headline text-primary">Your Video Call Requests</h1>
-        <p className="text-lg text-muted-foreground">Track the status of your scheduled product viewings and access meeting links.</p>
+        <p className="text-lg text-muted-foreground">Track the status of your scheduled product viewings.</p>
       </div>
 
       <div className="space-y-6">
@@ -137,23 +137,6 @@ export default function MyVideoCallsPage() {
                         </div>
                     </div>
                 )}
-                {call.meetingLink && (
-                    <div className="flex items-center text-muted-foreground">
-                        <LinkIcon className="mr-2 h-4 w-4 text-accent flex-shrink-0" />
-                        <span className="font-medium text-foreground">Meeting Link:</span>
-                        <a 
-                            href={call.meetingLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="ml-1 text-primary hover:underline truncate"
-                        >
-                            {call.meetingLink}
-                        </a>
-                    </div>
-                )}
-                 {call.status === 'Confirmed' && !call.meetingLink && (
-                    <p className="text-xs text-amber-600">Meeting link is being generated. Please check back shortly.</p>
-                )}
             </CardContent>
             <Separator />
             <CardFooter className="p-3 bg-muted/30 text-xs text-muted-foreground flex justify-end">
@@ -165,4 +148,3 @@ export default function MyVideoCallsPage() {
     </div>
   );
 }
-
