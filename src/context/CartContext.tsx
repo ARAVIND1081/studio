@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Product, CartItem } from '@/types';
@@ -15,7 +16,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'shopSphereCart_v2';
+const CART_STORAGE_KEY = 'shopSphereCart_v3';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
