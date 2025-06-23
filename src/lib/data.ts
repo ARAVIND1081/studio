@@ -3,11 +3,11 @@ import type { Product, Category, Review, ProductSpecification, SiteSettings, Use
 import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from '@/types';
 
 // localStorage keys
-const PRODUCTS_STORAGE_KEY = 'shopSphereProducts';
-const SETTINGS_STORAGE_KEY = 'shopSphereSettings';
-const USERS_STORAGE_KEY = 'shopSphereUsers';
-const ORDERS_STORAGE_KEY = 'shopSphereOrders';
-const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls';
+const PRODUCTS_STORAGE_KEY = 'shopSphereProducts_v2';
+const SETTINGS_STORAGE_KEY = 'shopSphereSettings_v2';
+const USERS_STORAGE_KEY = 'shopSphereUsers_v2';
+const ORDERS_STORAGE_KEY = 'shopSphereOrders_v2';
+const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls_v2';
 
 const TAX_RATE = 0.18; // 18% Tax Rate
 
@@ -543,4 +543,3 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
-
