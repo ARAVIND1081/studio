@@ -184,14 +184,12 @@ const DEFAULT_PRODUCTS_SEED: Product[] = DEFAULT_PRODUCTS_SEED_PRE_TAX.map(p =>
   mapProductForConsistency({ ...p, price: applyTax(p.price) })
 );
 
-
-let _productsData: Product[] | null = null;
-
+// This function directly loads from localStorage, ensuring it's always the live data.
 function getProductsDataStore(): Product[] {
-  if (_productsData === null) {
-    _productsData = loadFromLocalStorage<Product[]>(PRODUCTS_STORAGE_KEY, DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p)));
-  }
-  return _productsData;
+  return loadFromLocalStorage<Product[]>(
+    PRODUCTS_STORAGE_KEY, 
+    DEFAULT_PRODUCTS_SEED.map(p => mapProductForConsistency(p))
+  );
 }
 
 
@@ -227,7 +225,6 @@ export const addProduct = (productInput: ProductCreateInput): Product => {
   const newProduct = mapProductForConsistency(newProductRaw);
   store.push(newProduct);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
-  _productsData = null; // Force reload on next call
   return mapProductForConsistency(newProduct); 
 };
 
@@ -247,18 +244,16 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 
   store[productIndex] = mapProductForConsistency(productDataWithUpdates);
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
-  _productsData = null; // Force reload on next call
   return mapProductForConsistency(store[productIndex]);
 };
 
 export const deleteProduct = (id: string): boolean => {
   let store = getProductsDataStore(); 
   const initialLength = store.length;
-  _productsData = store.filter(p => p.id !== id); 
-  const success = _productsData.length < initialLength;
+  const updatedStore = store.filter(p => p.id !== id); 
+  const success = updatedStore.length < initialLength;
   if (success) {
-    saveToLocalStorage(PRODUCTS_STORAGE_KEY, _productsData.map(p => mapProductForConsistency(p)));
-    _productsData = null; // Force reload on next call
+    saveToLocalStorage(PRODUCTS_STORAGE_KEY, updatedStore.map(p => mapProductForConsistency(p)));
   }
   return success;
 };
@@ -291,7 +286,6 @@ export const addProductReview = (productId: string, reviewInput: ReviewCreateInp
   
   store[productIndex] = mapProductForConsistency(product); 
   saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
-  _productsData = null; // Force reload on next call
   return mapProductForConsistency(store[productIndex]); 
 };
 
@@ -494,7 +488,7 @@ export const getScheduledCallsByUserId = (userId: string): ScheduledCall[] => {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
-export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt'>;
+export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt' | 'meetingLink'>;
 
 export const addScheduledCall = (callInput: ScheduledCallCreateInput): ScheduledCall => {
   const store = getScheduledCallsDataStore();
@@ -504,7 +498,7 @@ export const addScheduledCall = (callInput: ScheduledCallCreateInput): Scheduled
     id: newId,
     status: 'Pending',
     createdAt: new Date().toISOString(),
-    // meetingLink is optional and comes from callInput
+    meetingLink: "https://meet.google.com/mock-link", // Placeholder, as this direct function doesn't call the AI tool
   };
   store.unshift(newCall); // Add to the beginning of the array
   saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
@@ -544,4 +538,3 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
-
