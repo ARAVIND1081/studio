@@ -536,7 +536,7 @@ export default function AdminPage() {
               </DialogContent>
             </Dialog>
 
-            <ScrollArea className="max-h-96 pr-2">
+            <ScrollArea className="h-96 pr-2">
                 <div className="space-y-3">
                 {products.map(product => (
                     <div key={product.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
