@@ -2,9 +2,6 @@
 import type { Product, Category, Review, ProductSpecification, SiteSettings, User, Order, OrderStatus, OrderItem, ShippingAddress, ScheduledCall, ScheduledCallStatus } from '@/types';
 import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from '@/types';
 
-// Keep CATEGORIES exported as it's static data
-export const CATEGORIES: Category[] = ["Electronics", "Apparel", "Home Goods", "Books", "Beauty"];
-
 // localStorage keys
 const PRODUCTS_STORAGE_KEY = 'shopSphereProducts';
 const SETTINGS_STORAGE_KEY = 'shopSphereSettings';
@@ -13,6 +10,14 @@ const ORDERS_STORAGE_KEY = 'shopSphereOrders';
 const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls';
 
 const TAX_RATE = 0.18; // 18% Tax Rate
+
+export const CATEGORIES: Category[] = [
+  'Electronics',
+  'Apparel',
+  'Home Goods',
+  'Books',
+  'Beauty',
+];
 
 // --- Helper function to load from localStorage ---
 function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
@@ -184,7 +189,8 @@ const DEFAULT_PRODUCTS_SEED: Product[] = DEFAULT_PRODUCTS_SEED_PRE_TAX.map(p =>
   mapProductForConsistency({ ...p, price: applyTax(p.price) })
 );
 
-// This function directly loads from localStorage, ensuring it's always the live data.
+// This function loads from localStorage or falls back to the default seed.
+// By removing the in-memory cache, we ensure it's always the live data.
 function getProductsDataStore(): Product[] {
   return loadFromLocalStorage<Product[]>(
     PRODUCTS_STORAGE_KEY, 
@@ -488,7 +494,7 @@ export const getScheduledCallsByUserId = (userId: string): ScheduledCall[] => {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
-export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt' | 'meetingLink'>;
+export type ScheduledCallCreateInput = Omit<ScheduledCall, 'id' | 'status' | 'createdAt'>;
 
 export const addScheduledCall = (callInput: ScheduledCallCreateInput): ScheduledCall => {
   const store = getScheduledCallsDataStore();
@@ -498,7 +504,6 @@ export const addScheduledCall = (callInput: ScheduledCallCreateInput): Scheduled
     id: newId,
     status: 'Pending',
     createdAt: new Date().toISOString(),
-    meetingLink: "https://meet.google.com/mock-link", // Placeholder, as this direct function doesn't call the AI tool
   };
   store.unshift(newCall); // Add to the beginning of the array
   saveToLocalStorage(SCHEDULED_CALLS_STORAGE_KEY, store);
@@ -527,7 +532,7 @@ export function _resetAllData_USE_WITH_CAUTION() {
     localStorage.removeItem(ORDERS_STORAGE_KEY);
     localStorage.removeItem(SCHEDULED_CALLS_STORAGE_KEY);
     
-    _productsData = null;
+    // _productsData = null; // This variable is removed
     _siteSettingsData = null;
     _usersData = null;
     _ordersData = null;
@@ -538,3 +543,4 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+
