@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus } from "@/lib/data"; // Removed getSiteSettings, updateSiteSettings
-import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info } from 'lucide-react';
-import type { Product, SiteSettings, Order, OrderStatus } from "@/types";
-import { ORDER_STATUSES } from "@/types";
+import { getAllProducts, addProduct, deleteProduct, updateProduct, type ProductCreateInput as DataProductCreateInput, getAllOrders, updateOrderStatus, getAllScheduledCalls, updateScheduledCallStatus } from "@/lib/data";
+import { Shield, Edit3, Trash2, Settings, FileText, PlusCircle, Edit, LogOut, AlertTriangle, UserX, Image as ImageIcon, XCircle, ShoppingBag, Eye, Info, Video } from 'lucide-react';
+import type { Product, SiteSettings, Order, OrderStatus, ScheduledCall, ScheduledCallStatus } from "@/types";
+import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from "@/types";
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
 
 
 const SUPER_ADMIN_EMAIL = "admin@shopsphere.com";
@@ -48,11 +49,10 @@ export default function AdminPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderDetailsDialogOpen, setIsOrderDetailsDialogOpen] = useState(false);
   
-
-
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -74,6 +74,7 @@ export default function AdminPage() {
     if (isAuthorizedAdminUser) {
       refreshProducts();
       refreshOrders();
+      refreshScheduledCalls();
     }
   }, [isAuthorizedAdminUser]);
 
@@ -101,6 +102,11 @@ export default function AdminPage() {
   const refreshOrders = () => {
     setOrders(getAllOrders());
   };
+
+  const refreshScheduledCalls = () => {
+    setScheduledCalls(getAllScheduledCalls());
+  };
+
 
   const handleDeleteProduct = (productId: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
@@ -338,6 +344,16 @@ export default function AdminPage() {
       toast({ title: "Order Status Updated", description: `Order ${updatedOrder.orderNumber} is now ${newStatus}.` });
     } else {
       toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+    }
+  };
+
+  const handleCallStatusChange = (callId: string, newStatus: ScheduledCallStatus) => {
+    const updatedCall = updateScheduledCallStatus(callId, newStatus);
+    if (updatedCall) {
+        refreshScheduledCalls();
+        toast({ title: "Call Status Updated", description: `Request for ${updatedCall.productName} is now ${newStatus}.` });
+    } else {
+        toast({ title: "Error", description: "Failed to update call status.", variant: "destructive" });
     }
   };
 
@@ -771,6 +787,69 @@ export default function AdminPage() {
                                         <Button variant="outline" size="sm" onClick={() => handleViewOrderDetails(order)}>
                                             <Eye className="mr-1 h-4 w-4" /> View Details
                                         </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                )}
+            </CardContent>
+        </Card>
+
+        {/* Video Call Requests Card */}
+        <Card className="shadow-lg md:col-span-2 lg:col-span-3">
+            <CardHeader>
+                <CardTitle className="flex items-center text-2xl font-headline">
+                    <Video className="mr-2 h-6 w-6 text-accent"/> Video Call Requests
+                </CardTitle>
+                <CardDescription>
+                    View and manage requests for live video product viewings.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {scheduledCalls.length === 0 ? (
+                    <p className="text-muted-foreground">No video call requests found yet.</p>
+                ) : (
+                    <ScrollArea className="max-h-96 pr-2">
+                        <div className="space-y-4">
+                            {scheduledCalls.map(call => (
+                                <div key={call.id} className="p-4 bg-muted/50 rounded-md space-y-3">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-3">
+                                        <div className="flex items-start gap-4">
+                                            <Image src={call.productImageUrl} alt={call.productName} width={64} height={48} className="rounded object-cover aspect-[4/3] bg-secondary" data-ai-hint="product thumbnail" />
+                                            <div>
+                                                <h3 className="font-semibold text-primary">{call.productName}</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Requested by: {call.requesterName}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {format(new Date(call.requestedDateTime), "PPP 'at' h:mm a")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {call.notes && (
+                                            <p className="text-sm italic text-muted-foreground border-l-2 pl-3 border-accent max-w-xs">"{call.notes}"</p>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-end">
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor={`call-status-${call.id}`} className="text-sm">Status:</Label>
+                                            <Select
+                                                value={call.status}
+                                                onValueChange={(newStatus: ScheduledCallStatus) => handleCallStatusChange(call.id, newStatus)}
+                                            >
+                                                <SelectTrigger id={`call-status-${call.id}`} className="h-8 w-[150px] text-xs">
+                                                    <SelectValue placeholder="Change status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {SCHEDULED_CALL_STATUSES.map(status => (
+                                                        <SelectItem key={status} value={status} className="text-xs">
+                                                            {status}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
