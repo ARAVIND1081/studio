@@ -3,11 +3,11 @@ import type { Product, Category, Review, ProductSpecification, SiteSettings, Use
 import { ORDER_STATUSES, SCHEDULED_CALL_STATUSES } from '@/types';
 
 // localStorage keys
-const PRODUCTS_STORAGE_KEY = 'shopSphereProducts_v3';
-const SETTINGS_STORAGE_KEY = 'shopSphereSettings_v3';
-const USERS_STORAGE_KEY = 'shopSphereUsers_v3';
-const ORDERS_STORAGE_KEY = 'shopSphereOrders_v3';
-const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls_v3';
+const PRODUCTS_STORAGE_KEY = 'shopSphereProducts_v4';
+const SETTINGS_STORAGE_KEY = 'shopSphereSettings_v4';
+const USERS_STORAGE_KEY = 'shopSphereUsers_v4';
+const ORDERS_STORAGE_KEY = 'shopSphereOrders_v4';
+const SCHEDULED_CALLS_STORAGE_KEY = 'shopSphereScheduledCalls_v4';
 
 const TAX_RATE = 0.18; // 18% Tax Rate
 
@@ -254,12 +254,12 @@ export const updateProduct = (id: string, updates: Partial<Omit<Product, 'id'>>)
 };
 
 export const deleteProduct = (id: string): boolean => {
-  let store = getProductsDataStore(); 
+  let store = getProductsDataStore();
   const initialLength = store.length;
-  const updatedStore = store.filter(p => p.id !== id); 
-  const success = updatedStore.length < initialLength;
+  store = store.filter(p => p.id !== id);
+  const success = store.length < initialLength;
   if (success) {
-    saveToLocalStorage(PRODUCTS_STORAGE_KEY, updatedStore.map(p => mapProductForConsistency(p)));
+    saveToLocalStorage(PRODUCTS_STORAGE_KEY, store.map(p => mapProductForConsistency(p)));
   }
   return success;
 };
@@ -543,3 +543,5 @@ export function _resetAllData_USE_WITH_CAUTION() {
     console.warn("_resetAllData_USE_WITH_CAUTION can only be called on the client.");
   }
 }
+
+    
