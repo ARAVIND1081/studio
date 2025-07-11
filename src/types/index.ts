@@ -106,7 +106,6 @@ export interface ScheduledCall {
   requestedDateTime: string; // ISO string
   status: ScheduledCallStatus;
   notes?: string;
-  // meetingLink?: string; // This line is removed to revert
+  meetingLink?: string; 
   createdAt: string; // ISO string
 }
-
