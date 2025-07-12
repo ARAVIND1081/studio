@@ -15,6 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'shopSphereCurrentUser_v3';
+const CART_STORAGE_KEY_PREFIX = 'shopSphereCart_v3'; // Use prefix for cart keys
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -51,11 +52,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, isLoading]);
 
+  const clearCartForGuest = () => {
+    if (typeof window !== 'undefined') {
+        const guestCartKey = `${CART_STORAGE_KEY_PREFIX}_guest`;
+        localStorage.removeItem(guestCartKey);
+        // This is a bit of a hack to force the cart context to update
+        // A better solution might involve a shared event emitter or state management library
+        window.dispatchEvent(new Event('storage'));
+    }
+  };
+
   const login = (user: User) => {
+    // Clear the guest cart before logging in
+    clearCartForGuest();
     setCurrentUser(user);
   };
 
   const logout = () => {
+    // The cart context will see the user is null and clear its state.
     setCurrentUser(null);
     router.push('/'); // Redirect to home on logout
   };

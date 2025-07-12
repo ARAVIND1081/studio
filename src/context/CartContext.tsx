@@ -3,6 +3,7 @@
 
 import type { Product, CartItem } from '@/types';
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useAuth } from './AuthContext'; // Import useAuth to get user info
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -16,22 +17,39 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'shopSphereCart_v3';
+const CART_STORAGE_KEY_PREFIX = 'shopSphereCart_v3';
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const storedCart = localStorage.getItem(CART_STORAGE_KEY);
-      return storedCart ? JSON.parse(storedCart) : [];
-    }
-    return [];
-  });
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartKey, setCartKey] = useState<string | null>(null);
 
+  // Determine the correct localStorage key based on auth state
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    if (!isAuthLoading) {
+      const key = currentUser ? `${CART_STORAGE_KEY_PREFIX}_${currentUser.id}` : `${CART_STORAGE_KEY_PREFIX}_guest`;
+      setCartKey(key);
     }
-  }, [cartItems]);
+  }, [currentUser, isAuthLoading]);
+
+  // Load cart from localStorage when the key changes (login/logout)
+  useEffect(() => {
+    if (cartKey && typeof window !== 'undefined') {
+      const storedCart = localStorage.getItem(cartKey);
+      setCartItems(storedCart ? JSON.parse(storedCart) : []);
+    } else {
+        // If there's no key (e.g., during initial load), ensure cart is empty
+        setCartItems([]);
+    }
+  }, [cartKey]);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (cartKey && typeof window !== 'undefined') {
+      localStorage.setItem(cartKey, JSON.stringify(cartItems));
+    }
+  }, [cartItems, cartKey]);
+
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCartItems(prevItems => {
